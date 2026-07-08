@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { Obligation, CATEGORY_STYLE_MAP, PriorityType, ObligationStatus } from '../types';
 import { 
   Search, Plus, Printer, AlertTriangle, CheckCircle, 
@@ -453,9 +453,8 @@ export default function Dashboard({
                   const totalSubtasks = obl.checklist_items.length;
 
                   return (
-                    <>
-                      <tr 
-                        key={obl.id} 
+                    <Fragment key={obl.id}>
+                      <tr
                         className={`hover:bg-slate-50/50 transition-colors ${
                           isPast ? 'bg-red-50/20' : ''
                         }`}
@@ -616,7 +615,7 @@ export default function Dashboard({
                           </td>
                         </tr>
                       )}
-                    </>
+                    </Fragment>
                   );
                 })
               )}

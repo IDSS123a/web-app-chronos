@@ -4,8 +4,9 @@
  */
 
 import React, { useState } from 'react';
-import { MOCK_USERS } from '../data/initialData';
 import { User } from '../types';
+import { supabase } from '../lib/supabase-browser';
+import { fetchCurrentUser } from '../lib/api-client';
 import { Clock, ShieldAlert, LogIn, CheckCircle2 } from 'lucide-react';
 
 interface LoginProps {
@@ -18,42 +19,36 @@ export default function Login({ onLoginSuccess }: LoginProps) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
-    setTimeout(() => {
-      // Find user
-      const user = MOCK_USERS.find(
-        (u) => u.username.toLowerCase() === username.trim().toLowerCase()
-      );
+    try {
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: username.trim(),
+        password,
+      });
 
-      if (!user) {
-        setError('Korisničko ime nije pronađeno u bazi.');
+      if (signInError) {
+        setError('Pogrešno korisničko ime ili lozinka.');
         setLoading(false);
         return;
       }
 
-      // Allow simple logins for mock purposes
-      // Default mock passwords
-      const isValidPassword = password.trim().length >= 6;
-      if (!isValidPassword) {
-        setError('Lozinka mora imati najmanje 6 karaktera.');
+      const user = await fetchCurrentUser();
+      if (!user) {
+        setError('Prijava uspješna, ali korisnički profil nije pronađen. Kontaktirajte administratora.');
         setLoading(false);
         return;
       }
 
       onLoginSuccess(user);
+    } catch (err) {
+      console.error('[Login] unexpected error:', err);
+      setError('Greška prilikom prijave. Pokušajte ponovo.');
+    } finally {
       setLoading(false);
-    }, 600);
-  };
-
-  const handleQuickLogin = (email: string) => {
-    const user = MOCK_USERS.find((u) => u.username === email);
-    if (user) {
-      setUsername(user.username);
-      setPassword('sigurnasifra123'); // seed password
     }
   };
 
@@ -157,55 +152,6 @@ export default function Login({ onLoginSuccess }: LoginProps) {
             </div>
           </form>
 
-          {/* Quick-fill Access for Low-stress UI / Testing */}
-          <div className="mt-8 pt-6 border-t border-slate-200">
-            <h3 className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest text-center mb-4">
-              Brzi odabir profila za UAT / Testiranje
-            </h3>
-            <div className="grid grid-cols-1 gap-2">
-              <button
-                type="button"
-                onClick={() => handleQuickLogin('direktor@idss.ba')}
-                className="w-full text-left px-4 py-3 text-xs font-semibold border border-slate-200 rounded-2xl hover:bg-slate-50 hover:border-slate-300 transition-colors flex justify-between items-center bg-white cursor-pointer"
-              >
-                <div>
-                  <div className="text-slate-800 font-bold">Direktor (Super Admin)</div>
-                  <div className="text-[10px] font-mono text-slate-400">direktor@idss.ba</div>
-                </div>
-                <span className="text-[9px] bg-amber-500/10 text-amber-600 border border-amber-500/20 px-2 py-0.5 rounded font-bold uppercase font-mono">
-                  Super Admin
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleQuickLogin('sekretar@idss.ba')}
-                className="w-full text-left px-4 py-3 text-xs font-semibold border border-slate-200 rounded-2xl hover:bg-slate-50 hover:border-slate-300 transition-colors flex justify-between items-center bg-white cursor-pointer"
-              >
-                <div>
-                  <div className="text-slate-800 font-bold">Jasmina (Sekretar)</div>
-                  <div className="text-[10px] font-mono text-slate-400">sekretar@idss.ba</div>
-                </div>
-                <span className="text-[9px] bg-slate-100 text-slate-600 border border-slate-200/60 px-2 py-0.5 rounded font-bold uppercase font-mono">
-                  Sekretar
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleQuickLogin('racunovodstvo@idss.ba')}
-                className="w-full text-left px-4 py-3 text-xs font-semibold border border-slate-200 rounded-2xl hover:bg-slate-50 hover:border-slate-300 transition-colors flex justify-between items-center bg-white cursor-pointer"
-              >
-                <div>
-                  <div className="text-slate-800 font-bold">Edin (Računovođa)</div>
-                  <div className="text-[10px] font-mono text-slate-400">racunovodstvo@idss.ba</div>
-                </div>
-                <span className="text-[9px] bg-slate-100 text-slate-600 border border-slate-200/60 px-2 py-0.5 rounded font-bold uppercase font-mono">
-                  Računovođa
-                </span>
-              </button>
-            </div>
-          </div>
         </div>
       </div>
 

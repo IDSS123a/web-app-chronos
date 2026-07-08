@@ -5,7 +5,9 @@
 
 import { useState, useEffect } from 'react';
 import { Obligation, AuditLog, User, RecurringInterval } from './types';
-import { INITIAL_OBLIGATIONS, MOCK_USERS } from './data/initialData';
+import { INITIAL_OBLIGATIONS } from './data/initialData';
+import { supabase } from './lib/supabase-browser';
+import { fetchCurrentUser } from './lib/api-client';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
 import CalendarView from './components/CalendarView';
@@ -19,11 +21,34 @@ import {
 
 export default function App() {
   
-  // 1. Authentication State (persistent in localStorage)
-  const [currentUser, setCurrentUser] = useState<User | null>(() => {
-    const saved = localStorage.getItem('chronos_user');
-    return saved ? JSON.parse(saved) : null;
-  });
+  // 1. Authentication State (Supabase session — persistence handled by supabase-js)
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
+  // Restore session on load, and stay in sync with Supabase auth state changes.
+  useEffect(() => {
+    let isMounted = true;
+
+    (async () => {
+      const { data } = await supabase.auth.getSession();
+      if (data.session) {
+        const user = await fetchCurrentUser();
+        if (isMounted) setCurrentUser(user);
+      }
+      if (isMounted) setAuthLoading(false);
+    })();
+
+    const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session) {
+        setCurrentUser(null);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      subscription.subscription.unsubscribe();
+    };
+  }, []);
 
   // 2. Database Obligations State (persisted in localStorage)
   const [obligations, setObligations] = useState<Obligation[]>(() => {
@@ -94,11 +119,10 @@ export default function App() {
   const [cronLogs, setCronLogs] = useState<string[]>([]);
   const [simulatedEmails, setSimulatedEmails] = useState<{ to: string; subject: string; body: string }[]>([]);
 
-  // 7. Auto login hook if user clicks standard username
+  // 7. Called by Login.tsx after a successful Supabase Auth sign-in
   const handleLogin = (user: User) => {
     setCurrentUser(user);
-    localStorage.setItem('chronos_user', JSON.stringify(user));
-    
+
     // Log login action
     const newLog: AuditLog = {
       id: `log_login_${Date.now()}`,
@@ -112,7 +136,7 @@ export default function App() {
     setAuditLogs((prev) => [newLog, ...prev]);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     if (currentUser) {
       const newLog: AuditLog = {
         id: `log_logout_${Date.now()}`,
@@ -125,8 +149,8 @@ export default function App() {
       };
       setAuditLogs((prev) => [newLog, ...prev]);
     }
+    await supabase.auth.signOut();
     setCurrentUser(null);
-    localStorage.removeItem('chronos_user');
   };
 
   // Toast Notification and Auto-fade
@@ -497,6 +521,15 @@ export default function App() {
     setCronLogs(logsBuffer);
     setSimulatedEmails(targetEmails);
   };
+
+  // While restoring an existing Supabase session, avoid flashing the Login screen
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-[#F4F4F7] flex items-center justify-center">
+        <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Učitavanje...</span>
+      </div>
+    );
+  }
 
   // If not authenticated, render Login Page
   if (!currentUser) {

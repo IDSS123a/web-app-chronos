@@ -3,31 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Obligation, User } from '../types';
+import { Obligation } from '../types';
 
-export const MOCK_USERS: User[] = [
-  {
-    id: 'usr_001',
-    username: 'direktor@idss.ba',
-    fullName: 'Direktor / Upravitelj ustanova',
-    role: 'SUPER_ADMIN',
-    institution: 'BOTH'
-  },
-  {
-    id: 'usr_002',
-    username: 'sekretar@idss.ba',
-    fullName: 'Jasmina Hadžić (Sekretar)',
-    role: 'STANDARD_USER',
-    institution: 'BOTH'
-  },
-  {
-    id: 'usr_003',
-    username: 'racunovodstvo@idss.ba',
-    fullName: 'Edin Mehmedović (Računovođa)',
-    role: 'STANDARD_USER',
-    institution: 'BOTH'
-  }
-];
+// NOTE: mock users were removed here — real accounts now live in Supabase
+// Auth, seeded via `npm run seed` (scripts/seed-users.ts). See CONSTITUTION.md.
 
 export const INITIAL_OBLIGATIONS: Obligation[] = [
   {
