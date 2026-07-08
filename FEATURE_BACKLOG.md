@@ -13,7 +13,7 @@
 | Sprint | Naziv | Fokus | Status |
 |---|---|---|---|
 | 01 | Backend & Database Foundation | Supabase projekat, šema, Express scaffold, real Auth | DONE |
-| 02 | Obligations API & Server-side Audit | CRUD kroz pravi backend, server-side audit log, RBAC enforcement | TODO |
+| 02 | Obligations API & Server-side Audit | CRUD kroz pravi backend, server-side audit log, RBAC enforcement | DONE |
 | 03 | File Attachments | Supabase Storage upload/download, validacija | TODO |
 | 04 | Recurring Engine & Real Time | Ukloniti hardkodovani "danas", server-side recurring logika | TODO |
 | 05 | Real Email Reminders | Resend integracija, `node-cron` 08:00 job | TODO |
@@ -42,8 +42,10 @@ osnovu onoga što je stvarno završeno u prethodnom).
 ## SPRINT 02 — Obligations API & Server-side Audit
 
 - REST rute: `GET/POST/PATCH/DELETE /api/obligations`, toggle status, toggle checklist item
-- `server/features/obligations/repository.ts` + `domain.ts`
-- Audit log se piše isključivo server-side (uklanja se client-side `handleFormSubmit` logika za log)
+- `server/features/obligations/repository.ts` + `domain.ts` — uključuje kompletnu poslovnu logiku prenesenu 1:1 iz `App.tsx` (uključujući recurring cycle kreiranje pri završetku ponavljajuće obaveze — Commander M-11 Refactoring Boundary: isto ponašanje, bolja struktura)
+- RBAC vlasništvo: `STANDARD_USER` smije uređivati/završavati/brisati-checklist-stavku samo na obavezama gdje je `created_by === currentUser.id`; `SUPER_ADMIN` bez ograničenja (CONSTITUTION.md §5.1)
+- Zod validacija na svakoj ruti (`server/features/obligations/schemas.ts`)
+- Audit log se piše isključivo server-side (uklanja se client-side audit-log logika iz `App.tsx`)
 - Frontend: `Dashboard`, `ObligationForm` prebačeni sa `localStorage` na `/api/obligations`
 - Undo toast ostaje, ali radi nad stvarnim API pozivima
 
@@ -54,11 +56,11 @@ osnovu onoga što je stvarno završeno u prethodnom).
 - `ObligationForm` drag&drop povezan na stvarni upload
 - Uklanjanje mock `drive.google.com` linkova
 
-## SPRINT 04 — Recurring Engine & Real Time
+## SPRINT 04 — Real Time (uklanjanje hardkodovanog "danas")
 
-- Uklanjanje hardkodovanog `'2026-07-02'` kao "danas" kroz cijelu aplikaciju
-- Recurring cycle kreiranje logika premještena u `server/features/obligations/domain.ts`
+- Uklanjanje hardkodovanog `'2026-07-02'` kao "danas" kroz cijelu aplikaciju (Dashboard filteri/statistika, CalendarView, cron simulator)
 - Provjera vremenske zone (Europe/Sarajevo)
+- (Recurring cycle logika je već prenesena server-side u Sprint 02 — ovdje se samo uklanja ovisnost o fiksnom datumu)
 
 ## SPRINT 05 — Real Email Reminders
 

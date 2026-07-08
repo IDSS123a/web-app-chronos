@@ -13,3 +13,8 @@
 [2026-07-08] [SPRINT_01] Ispravljen pre-postojeći React "key" prop bug u Dashboard.tsx (usput, nezavisno od Sprint 01 opsega).
 [2026-07-08] [SPRINT_01] Korigovan korisnički roster na stvarnih 7 osoba (CONSTITUTION.md §5.1.1); uklonjena 2 placeholder test naloga; uklonjen quick-fill panel sa login stranice (izlagao je email adrese cijelog osoblja na javnoj stranici).
 [2026-07-08] [SPRINT_01] Precizirano RBAC pravilo: STANDARD_USER smije uređivati samo vlastite unose (created_by), ali vidi sve obaveze obje ustanove — implementacija enforcement-a ide u Sprint 02.
+[2026-07-08] [SPRINT_02] Obligations i AuditLogs prebačeni sa localStorage na pravi Express API (server/features/obligations, server/features/audit-logs) — puni CRUD, recurring engine, checklist toggle.
+[2026-07-08] [SPRINT_02] Server-side RBAC: STANDARD_USER može uređivati/završavati samo obaveze koje je sam kreirao (403 inače); brisanje ostaje SUPER_ADMIN-only. Dashboard UI sakriva dugmad u skladu s tim.
+[2026-07-08] [SPRINT_02] Audit log se sada piše isključivo server-side pri svakoj mutaciji, uključujući login/logout (novi POST /api/audit-logs, ograničen na Users/IZMJENA da se spriječi zloupotreba).
+[2026-07-08] [SPRINT_02] Undo funkcionalnost pojednostavljena da poštuje novo RBAC pravilo: opoziv je moguć samo za završavanje/reaktivaciju obaveze (nema DELETE poziva za STANDARD_USER); kreiranje/brisanje ostaju bez opozivanja.
+[2026-07-08] [SPRINT_02] Uklonjen INITIAL_OBLIGATIONS demo seed — baza kreće prazna kao prava institucionalna baza.

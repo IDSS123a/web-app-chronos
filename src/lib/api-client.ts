@@ -6,7 +6,36 @@
  */
 
 import { supabase } from './supabase-browser';
-import type { User } from '../types';
+import type { User, Obligation, AuditLog, ChecklistItem } from '../types';
+
+interface ApiSuccess<T> {
+  success: true;
+  data: T;
+}
+interface ApiFailure {
+  success: false;
+  error: string;
+}
+type ApiResponse<T> = ApiSuccess<T> | ApiFailure;
+
+async function authorizedFetch(url: string, options: RequestInit = {}): Promise<Response> {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const accessToken = sessionData.session?.access_token;
+
+  const headers = new Headers(options.headers);
+  if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`);
+  if (options.body) headers.set('Content-Type', 'application/json');
+
+  return fetch(url, { ...options, headers });
+}
+
+async function parseResponse<T>(response: Response): Promise<T> {
+  const body = (await response.json()) as ApiResponse<T>;
+  if (body.success === false) {
+    throw new Error(body.error || 'Greška servera.');
+  }
+  return body.data;
+}
 
 /**
  * Fetch the Chronos profile (role, institution, full name) for the
@@ -15,16 +44,18 @@ import type { User } from '../types';
  */
 export async function fetchCurrentUser(): Promise<User | null> {
   const { data: sessionData } = await supabase.auth.getSession();
-  const accessToken = sessionData.session?.access_token;
-  if (!accessToken) return null;
+  if (!sessionData.session) return null;
 
-  const response = await fetch('/api/auth/me', {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-
+  const response = await authorizedFetch('/api/auth/me');
   if (!response.ok) return null;
 
-  const body = await response.json();
+  const body = (await response.json()) as ApiResponse<{
+    id: string;
+    username: string;
+    fullName: string;
+    role: User['role'];
+    institution: User['institution'];
+  }>;
   if (!body.success) return null;
 
   return {
@@ -34,4 +65,83 @@ export async function fetchCurrentUser(): Promise<User | null> {
     role: body.data.role,
     institution: body.data.institution,
   };
+}
+
+/** Records a login/logout event in the server-side audit log. */
+export async function logUserAction(targetUserId: string, changes: string): Promise<void> {
+  const response = await authorizedFetch('/api/audit-logs', {
+    method: 'POST',
+    body: JSON.stringify({
+      action_type: 'IZMJENA',
+      target_table: 'Users',
+      target_id: targetUserId,
+      changes,
+    }),
+  });
+  await parseResponse<AuditLog>(response);
+}
+
+export async function fetchObligations(): Promise<Obligation[]> {
+  const response = await authorizedFetch('/api/obligations');
+  return parseResponse<Obligation[]>(response);
+}
+
+export interface ObligationPayload {
+  title: string;
+  institution: Obligation['institution'];
+  category: string;
+  due_date: string;
+  responsible_person: string;
+  priority: Obligation['priority'];
+  checklist_items: ChecklistItem[];
+  attachment_url: string;
+  attachment_name: string;
+  is_recurring: boolean;
+  recurring_interval: Obligation['recurring_interval'];
+}
+
+export async function createObligation(payload: ObligationPayload): Promise<Obligation> {
+  const response = await authorizedFetch('/api/obligations', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+  return parseResponse<Obligation>(response);
+}
+
+export async function updateObligation(id: string, payload: Partial<ObligationPayload>): Promise<Obligation> {
+  const response = await authorizedFetch(`/api/obligations/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+  return parseResponse<Obligation>(response);
+}
+
+export async function deleteObligation(id: string): Promise<void> {
+  const response = await authorizedFetch(`/api/obligations/${id}`, { method: 'DELETE' });
+  await parseResponse<null>(response);
+}
+
+export interface ToggleStatusResult {
+  obligation: Obligation;
+  nextCycle: Obligation | null;
+}
+
+export async function toggleObligationStatus(id: string): Promise<ToggleStatusResult> {
+  const response = await authorizedFetch(`/api/obligations/${id}/toggle-status`, { method: 'POST' });
+  return parseResponse<ToggleStatusResult>(response);
+}
+
+export async function toggleChecklistItem(id: string, itemIndex: number): Promise<Obligation> {
+  const response = await authorizedFetch(`/api/obligations/${id}/checklist/${itemIndex}`, { method: 'PATCH' });
+  return parseResponse<Obligation>(response);
+}
+
+export async function fetchAuditLogs(): Promise<AuditLog[]> {
+  const response = await authorizedFetch('/api/audit-logs');
+  return parseResponse<AuditLog[]>(response);
+}
+
+export async function clearAuditLogs(): Promise<void> {
+  const response = await authorizedFetch('/api/audit-logs', { method: 'DELETE' });
+  await parseResponse<null>(response);
 }

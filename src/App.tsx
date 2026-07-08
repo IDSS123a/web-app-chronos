@@ -4,23 +4,42 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Obligation, AuditLog, User, RecurringInterval } from './types';
-import { INITIAL_OBLIGATIONS } from './data/initialData';
+import { Obligation, User } from './types';
 import { supabase } from './lib/supabase-browser';
-import { fetchCurrentUser } from './lib/api-client';
+import {
+  fetchCurrentUser,
+  logUserAction,
+  fetchObligations,
+  fetchAuditLogs,
+  createObligation as createObligationApi,
+  updateObligation as updateObligationApi,
+  deleteObligation as deleteObligationApi,
+  toggleObligationStatus as toggleObligationStatusApi,
+  toggleChecklistItem as toggleChecklistItemApi,
+  clearAuditLogs as clearAuditLogsApi,
+} from './lib/api-client';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
 import CalendarView from './components/CalendarView';
 import AuditLogsView from './components/AuditLogsView';
 import ObligationForm from './components/ObligationForm';
 import PrintTemplate from './components/PrintTemplate';
-import { 
-  Clock, LogOut, CheckSquare, History, Calendar as CalendarIcon, 
-  HelpCircle, Menu, X, Shield, RefreshCw, Send, CheckCircle, Mail, AlertTriangle
+import {
+  Clock, LogOut, CheckSquare, History, Calendar as CalendarIcon,
+  Menu, X, Shield, RefreshCw, AlertTriangle
 } from 'lucide-react';
 
+// Reverses the last "complete/reactivate" action via the same toggle-status
+// endpoint. Create/delete are intentionally not undoable here: STANDARD_USER
+// cannot delete (CONSTITUTION.md §5.1), so a generic "undo create" via DELETE
+// would violate RBAC for that role; deleting is confirmed explicitly instead.
+interface UndoAction {
+  obligationId: string;
+  nextCycleId: string | null;
+}
+
 export default function App() {
-  
+
   // 1. Authentication State (Supabase session — persistence handled by supabase-js)
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -50,69 +69,52 @@ export default function App() {
     };
   }, []);
 
-  // 2. Database Obligations State (persisted in localStorage)
-  const [obligations, setObligations] = useState<Obligation[]>(() => {
-    const saved = localStorage.getItem('chronos_obligations');
-    return saved ? JSON.parse(saved) : INITIAL_OBLIGATIONS;
-  });
+  // 2. Obligations state — loaded from the backend API, not localStorage.
+  const [obligations, setObligations] = useState<Obligation[]>([]);
+  const [dataLoading, setDataLoading] = useState(true);
+  const [dataError, setDataError] = useState<string | null>(null);
 
-  // 3. System Audit Logs State (persisted in localStorage)
-  const [auditLogs, setAuditLogs] = useState<AuditLog[]>(() => {
-    const saved = localStorage.getItem('chronos_audit_logs');
-    if (saved) return JSON.parse(saved);
+  // 3. Audit logs state — loaded from the backend API.
+  const [auditLogs, setAuditLogs] = useState<import('./types').AuditLog[]>([]);
 
-    // Initial default logs for seed presentation
-    return [
-      {
-        id: 'log_seed_1',
-        timestamp: '2026-07-02T08:15:00Z',
-        username: 'direktor@idss.ba',
-        action_type: 'KREIRANJE',
-        target_table: 'Obligations',
-        target_id: 'obl_test_001',
-        changes: 'Uspješno inicijalizovan registar rokova i školske godine 2026/2027.'
-      },
-      {
-        id: 'log_seed_2',
-        timestamp: '2026-07-02T08:20:00Z',
-        username: 'sekretar@idss.ba',
-        action_type: 'IZMJENA',
-        target_table: 'Obligations',
-        target_id: 'obl_test_003',
-        changes: 'Dodane kontrolne stavke za licence odgajateljica vrtića.'
-      },
-      {
-        id: 'log_seed_3',
-        timestamp: '2026-07-02T08:30:00Z',
-        username: 'racunovodstvo@idss.ba',
-        action_type: 'KREIRANJE',
-        target_table: 'Obligations',
-        target_id: 'obl_test_006',
-        changes: 'Kreirana mjesečna obaveza plaćanja najma prostora IMH.'
+  useEffect(() => {
+    if (!currentUser) return;
+
+    let isMounted = true;
+    setDataLoading(true);
+    setDataError(null);
+
+    (async () => {
+      try {
+        const [obligationsData, auditLogsData] = await Promise.all([fetchObligations(), fetchAuditLogs()]);
+        if (isMounted) {
+          setObligations(obligationsData);
+          setAuditLogs(auditLogsData);
+        }
+      } catch (err) {
+        console.error('[App] failed to load data:', err);
+        if (isMounted) setDataError(err instanceof Error ? err.message : 'Greška pri učitavanju podataka.');
+      } finally {
+        if (isMounted) setDataLoading(false);
       }
-    ];
-  });
+    })();
 
-  // Sync to localStorage
-  useEffect(() => {
-    localStorage.setItem('chronos_obligations', JSON.stringify(obligations));
-  }, [obligations]);
-
-  useEffect(() => {
-    localStorage.setItem('chronos_audit_logs', JSON.stringify(auditLogs));
-  }, [auditLogs]);
+    return () => {
+      isMounted = false;
+    };
+  }, [currentUser]);
 
   // 4. View and UI States
   const [currentView, setCurrentView] = useState<'DASHBOARD' | 'CALENDAR' | 'AUDIT_LOGS'>('DASHBOARD');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedObligation, setSelectedObligation] = useState<Obligation | null>(null);
-  
+
   // Mobile sidebar menu toggler
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  // 5. Action History / Undo State (PRD story 1)
-  const [lastActionState, setLastActionState] = useState<Obligation[] | null>(null);
-  const [undoToast, setUndoToast] = useState<{ visible: boolean; message: string; actionId: string } | null>(null);
+  // 5. Undo toast state (see UndoAction note above)
+  const [undoAction, setUndoAction] = useState<UndoAction | null>(null);
+  const [undoToast, setUndoToast] = useState<{ visible: boolean; message: string; actionId: string; undoable: boolean } | null>(null);
 
   // 6. Cron simulator modal popup
   const [isCronSimulatorOpen, setIsCronSimulatorOpen] = useState(false);
@@ -122,46 +124,28 @@ export default function App() {
   // 7. Called by Login.tsx after a successful Supabase Auth sign-in
   const handleLogin = (user: User) => {
     setCurrentUser(user);
-
-    // Log login action
-    const newLog: AuditLog = {
-      id: `log_login_${Date.now()}`,
-      timestamp: new Date().toISOString(),
-      username: user.username,
-      action_type: 'IZMJENA',
-      target_table: 'Users',
-      target_id: user.id,
-      changes: `Korisnik ${user.fullName} se uspješno prijavio na sistem.`
-    };
-    setAuditLogs((prev) => [newLog, ...prev]);
+    logUserAction(user.id, `Korisnik ${user.fullName} se uspješno prijavio na sistem.`).catch((err) =>
+      console.error('[App] failed to log login action:', err)
+    );
   };
 
   const handleLogout = async () => {
     if (currentUser) {
-      const newLog: AuditLog = {
-        id: `log_logout_${Date.now()}`,
-        timestamp: new Date().toISOString(),
-        username: currentUser.username,
-        action_type: 'IZMJENA',
-        target_table: 'Users',
-        target_id: currentUser.id,
-        changes: `Korisnik ${currentUser.fullName} se odjavio sa sistema.`
-      };
-      setAuditLogs((prev) => [newLog, ...prev]);
+      await logUserAction(currentUser.id, `Korisnik ${currentUser.fullName} se odjavio sa sistema.`).catch((err) =>
+        console.error('[App] failed to log logout action:', err)
+      );
     }
     await supabase.auth.signOut();
     setCurrentUser(null);
+    setObligations([]);
+    setAuditLogs([]);
   };
 
   // Toast Notification and Auto-fade
-  const triggerUndoToast = (message: string, obligationsBefore: Obligation[]) => {
-    setLastActionState(obligationsBefore);
+  const triggerToast = (message: string, action: UndoAction | null) => {
+    setUndoAction(action);
     const id = `action_${Date.now()}`;
-    setUndoToast({
-      visible: true,
-      message,
-      actionId: id
-    });
+    setUndoToast({ visible: true, message, actionId: id, undoable: action !== null });
 
     // Auto fade after 5 seconds as requested in User Story 1
     setTimeout(() => {
@@ -174,278 +158,155 @@ export default function App() {
     }, 5000);
   };
 
-  // Trigger Action Undo (PRD story 1)
-  const handleUndoAction = () => {
-    if (lastActionState && currentUser) {
-      setObligations(lastActionState);
-      setLastActionState(null);
+  // Reverses the last "complete/reactivate" toggle (see UndoAction note above)
+  const handleUndoAction = async () => {
+    if (!undoAction || !currentUser) return;
+
+    try {
+      const result = await toggleObligationStatusApi(undoAction.obligationId);
+      setObligations((prev) => {
+        let next = prev.map((o) => (o.id === result.obligation.id ? result.obligation : o));
+        if (undoAction.nextCycleId) {
+          next = next.filter((o) => o.id !== undoAction.nextCycleId);
+        }
+        return next;
+      });
+
+      if (undoAction.nextCycleId) {
+        await deleteObligationApi(undoAction.nextCycleId);
+      }
+
+      const refreshedLogs = await fetchAuditLogs();
+      setAuditLogs(refreshedLogs);
+    } catch (err) {
+      console.error('[App] undo failed:', err);
+    } finally {
+      setUndoAction(null);
       setUndoToast(null);
-
-      const newLog: AuditLog = {
-        id: `log_undo_${Date.now()}`,
-        timestamp: new Date().toISOString(),
-        username: currentUser.username,
-        action_type: 'UNDO',
-        target_table: 'Obligations',
-        target_id: 'SISTEM',
-        changes: 'Korisnik je opozvao posljednju izmjenu (Undo) i vratio stanje registra.'
-      };
-      setAuditLogs((prev) => [newLog, ...prev]);
     }
-  };
-
-  // Calculation of next recurring due date (PRD Section 5.3)
-  const calculateNextDueDate = (currentDueDate: string, interval: RecurringInterval) => {
-    const date = new Date(currentDueDate);
-    switch (interval) {
-      case 'MONTHLY':
-        date.setMonth(date.getMonth() + 1);
-        break;
-      case 'HALF_YEARLY':
-        date.setMonth(date.getMonth() + 6);
-        break;
-      case 'YEARLY':
-        date.setFullYear(date.getFullYear() + 1);
-        break;
-      default:
-        return null;
-    }
-    return date.toISOString().split('T')[0];
   };
 
   // 8. Create or Edit Obligation Save Handler (incorporates Mock Drive URL creation)
-  const handleFormSubmit = (data: Partial<Obligation>, attachmentFile?: File | null) => {
+  const handleFormSubmit = async (data: Partial<Obligation>, attachmentFile?: File | null) => {
     if (!currentUser) return;
 
-    // Cache current state for Undo
-    const obligationsBefore = [...obligations];
+    const attachmentUrl = attachmentFile ? `https://drive.google.com/open?id=${Date.now()}_drive_mock` : undefined;
+    const attachmentName = attachmentFile ? attachmentFile.name : undefined;
 
-    if (selectedObligation) {
-      // EDIT MODE
-      const updatedList = obligations.map((item) => {
-        if (item.id === selectedObligation.id) {
-          const updated: Obligation = {
-            ...item,
-            ...data,
-            updated_at: new Date().toISOString()
-          } as Obligation;
+    try {
+      if (selectedObligation) {
+        // EDIT MODE
+        const updated = await updateObligationApi(selectedObligation.id, {
+          title: data.title,
+          institution: data.institution,
+          category: data.category,
+          due_date: data.due_date,
+          responsible_person: data.responsible_person,
+          priority: data.priority,
+          checklist_items: data.checklist_items,
+          is_recurring: data.is_recurring,
+          recurring_interval: data.recurring_interval,
+          ...(attachmentUrl ? { attachment_url: attachmentUrl, attachment_name: attachmentName } : {}),
+        });
 
-          if (attachmentFile) {
-            updated.attachment_url = `https://drive.google.com/open?id=${Date.now()}_drive_mock`;
-            updated.attachment_name = attachmentFile.name;
-          }
+        setObligations((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
+        setSelectedObligation(null);
+      } else {
+        // CREATE MODE
+        const created = await createObligationApi({
+          title: data.title || '',
+          institution: data.institution || 'IDSS',
+          category: data.category || 'ADMINISTRACIJA',
+          due_date: data.due_date || new Date().toISOString().split('T')[0],
+          responsible_person: data.responsible_person || '',
+          priority: data.priority || 'SREDNJI',
+          checklist_items: data.checklist_items || [],
+          attachment_url: attachmentUrl || '',
+          attachment_name: attachmentName || '',
+          is_recurring: data.is_recurring || false,
+          recurring_interval: data.recurring_interval || 'NONE',
+        });
 
-          return updated;
-        }
-        return item;
-      });
+        setObligations((prev) => [created, ...prev]);
+        triggerToast(`Obaveza "${created.title}" je uspješno kreirana.`, null);
+      }
 
-      setObligations(updatedList);
-      setSelectedObligation(null);
-
-      // Log audit
-      const newLog: AuditLog = {
-        id: `log_edit_${Date.now()}`,
-        timestamp: new Date().toISOString(),
-        username: currentUser.username,
-        action_type: 'IZMJENA',
-        target_table: 'Obligations',
-        target_id: selectedObligation.id,
-        changes: `Ažurirani detalji obaveze "${data.title}".`
-      };
-      setAuditLogs((prev) => [newLog, ...prev]);
-
-    } else {
-      // CREATE MODE (User Story 1)
-      const newId = `obl_${Date.now()}`;
-      
-      const newObligation: Obligation = {
-        id: newId,
-        title: data.title || '',
-        institution: data.institution || 'IDSS',
-        category: data.category || 'ADMINISTRACIJA',
-        due_date: data.due_date || '2026-07-02',
-        responsible_person: data.responsible_person || '',
-        priority: data.priority || 'SREDNJI',
-        status: 'NOVO',
-        checklist_items: data.checklist_items || [],
-        attachment_url: attachmentFile ? `https://drive.google.com/open?id=${Date.now()}_drive_mock` : '',
-        attachment_name: attachmentFile ? attachmentFile.name : '',
-        is_recurring: data.is_recurring || false,
-        recurring_interval: data.recurring_interval || 'NONE',
-        created_by: currentUser.id,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      };
-
-      setObligations([newObligation, ...obligations]);
-
-      // Log audit
-      const newLog: AuditLog = {
-        id: `log_create_${Date.now()}`,
-        timestamp: new Date().toISOString(),
-        username: currentUser.username,
-        action_type: 'KREIRANJE',
-        target_table: 'Obligations',
-        target_id: newId,
-        changes: `Zavedena nova obaveza "${newObligation.title}" za ustanovu ${newObligation.institution === 'IDSS' ? 'IDSS' : 'IMH'}.`
-      };
-      setAuditLogs((prev) => [newLog, ...prev]);
-
-      // Trigger temporary 5-second Undo toast
-      triggerUndoToast(`Obaveza "${newObligation.title}" je uspješno kreirana.`, obligationsBefore);
+      const refreshedLogs = await fetchAuditLogs();
+      setAuditLogs(refreshedLogs);
+    } catch (err) {
+      console.error('[App] failed to save obligation:', err);
+      alert(err instanceof Error ? err.message : 'Greška pri čuvanju obaveze.');
     }
   };
 
   // Toggle checklist subtask items
-  const handleToggleChecklistItem = (oblId: string, itemIdx: number) => {
+  const handleToggleChecklistItem = async (oblId: string, itemIdx: number) => {
     if (!currentUser) return;
-    const updated = obligations.map((item) => {
-      if (item.id === oblId) {
-        const checkItems = [...item.checklist_items];
-        checkItems[itemIdx] = {
-          ...checkItems[itemIdx],
-          done: !checkItems[itemIdx].done
-        };
-        return {
-          ...item,
-          checklist_items: checkItems,
-          updated_at: new Date().toISOString()
-        };
-      }
-      return item;
-    });
-
-    setObligations(updated);
-  };
-
-  // Toggle active/completed status + Recurring engine trigger (PRD Section 5.3)
-  const handleToggleStatus = (id: string) => {
-    if (!currentUser) return;
-
-    const obligationsBefore = [...obligations];
-    const target = obligations.find((o) => o.id === id);
-    if (!target) return;
-
-    if (target.status !== 'ZAVRŠENO') {
-      // Transitioning to completed
-      const nextDue = calculateNextDueDate(target.due_date, target.recurring_interval);
-      
-      const updatedList = obligations.map((item) => {
-        if (item.id === id) {
-          return {
-            ...item,
-            status: 'ZAVRŠENO' as const,
-            updated_at: new Date().toISOString()
-          };
-        }
-        return item;
-      });
-
-      // If it is a recurring task, automatically create a new cycle (Section 5.3 rules)
-      if (target.is_recurring && nextDue) {
-        const nextCycleId = `obl_rec_${Date.now()}`;
-        
-        // Reset checklist items 'done' to 'false'
-        const resetChecklist = target.checklist_items.map((c) => ({
-          ...c,
-          done: false
-        }));
-
-        const newCycle: Obligation = {
-          ...target,
-          id: nextCycleId,
-          status: 'NOVO',
-          due_date: nextDue,
-          checklist_items: resetChecklist,
-          attachment_url: '', // Prompt user to upload a fresh file for the new year/cycle
-          attachment_name: '',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        };
-
-        // Prepend new cycle, save current as completed
-        setObligations([newCycle, ...updatedList]);
-
-        // Audit Logs entry
-        const newLog: AuditLog = {
-          id: `log_complete_rec_${Date.now()}`,
-          timestamp: new Date().toISOString(),
-          username: currentUser.username,
-          action_type: 'ZAVRŠETAK',
-          target_table: 'Obligations',
-          target_id: id,
-          changes: `Završena ponavljajuća obaveza "${target.title}". Sistem je automatski kreirao novi ciklus (rok: ${nextDue.split('-').reverse().join('.')}) sa resetovanom kontrolnom listom.`
-        };
-        setAuditLogs((prev) => [newLog, ...prev]);
-
-        triggerUndoToast(`Obaveza "${target.title}" označena kao završena. Pokrenut sljedeći ciklus za ${nextDue.split('-').reverse().join('.')}.`, obligationsBefore);
-      } else {
-        // Standard non-recurring completion
-        setObligations(updatedList);
-
-        const newLog: AuditLog = {
-          id: `log_complete_std_${Date.now()}`,
-          timestamp: new Date().toISOString(),
-          username: currentUser.username,
-          action_type: 'ZAVRŠETAK',
-          target_table: 'Obligations',
-          target_id: id,
-          changes: `Obaveza "${target.title}" uspješno ispunjena i arhivirana.`
-        };
-        setAuditLogs((prev) => [newLog, ...prev]);
-
-        triggerUndoToast(`Obaveza "${target.title}" označena kao završena.`, obligationsBefore);
-      }
-    } else {
-      // Toggle back to active (U_TOKU)
-      const updatedList = obligations.map((item) => {
-        if (item.id === id) {
-          return {
-            ...item,
-            status: 'U_TOKU' as const,
-            updated_at: new Date().toISOString()
-          };
-        }
-        return item;
-      });
-      setObligations(updatedList);
-
-      const newLog: AuditLog = {
-        id: `log_reopen_${Date.now()}`,
-        timestamp: new Date().toISOString(),
-        username: currentUser.username,
-        action_type: 'IZMJENA',
-        target_table: 'Obligations',
-        target_id: id,
-        changes: `Ponovno aktiviran rok "${target.title}" (status promijenjen u U TOKU).`
-      };
-      setAuditLogs((prev) => [newLog, ...prev]);
+    try {
+      const updated = await toggleChecklistItemApi(oblId, itemIdx);
+      setObligations((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
+    } catch (err) {
+      console.error('[App] failed to toggle checklist item:', err);
+      alert(err instanceof Error ? err.message : 'Greška pri izmjeni kontrolne liste.');
     }
   };
 
-  // Delete Obligation
-  const handleDeleteObligation = (id: string) => {
+  // Toggle active/completed status + Recurring engine trigger (PRD Section 5.3)
+  const handleToggleStatus = async (id: string) => {
     if (!currentUser) return;
     const target = obligations.find((o) => o.id === id);
     if (!target) return;
 
-    const obligationsBefore = [...obligations];
-    const updated = obligations.filter((o) => o.id !== id);
-    setObligations(updated);
+    try {
+      const result = await toggleObligationStatusApi(id);
 
-    const newLog: AuditLog = {
-      id: `log_delete_${Date.now()}`,
-      timestamp: new Date().toISOString(),
-      username: currentUser.username,
-      action_type: 'BRISANJE',
-      target_table: 'Obligations',
-      target_id: id,
-      changes: `Trajno obrisana obaveza "${target.title}" iz registra.`
-    };
-    setAuditLogs((prev) => [newLog, ...prev]);
+      setObligations((prev) => {
+        const next = prev.map((o) => (o.id === result.obligation.id ? result.obligation : o));
+        return result.nextCycle ? [result.nextCycle, ...next] : next;
+      });
 
-    triggerUndoToast(`Obaveza "${target.title}" je obrisana.`, obligationsBefore);
+      const refreshedLogs = await fetchAuditLogs();
+      setAuditLogs(refreshedLogs);
+
+      if (target.status !== 'ZAVRŠENO') {
+        const message = result.nextCycle
+          ? `Obaveza "${target.title}" označena kao završena. Pokrenut sljedeći ciklus za ${result.nextCycle.due_date.split('-').reverse().join('.')}.`
+          : `Obaveza "${target.title}" označena kao završena.`;
+        triggerToast(message, { obligationId: result.obligation.id, nextCycleId: result.nextCycle?.id ?? null });
+      }
+    } catch (err) {
+      console.error('[App] failed to toggle status:', err);
+      alert(err instanceof Error ? err.message : 'Greška pri promjeni statusa.');
+    }
+  };
+
+  // Delete Obligation (SUPER_ADMIN only — enforced server-side too)
+  const handleDeleteObligation = async (id: string) => {
+    if (!currentUser) return;
+    const target = obligations.find((o) => o.id === id);
+    if (!target) return;
+
+    try {
+      await deleteObligationApi(id);
+      setObligations((prev) => prev.filter((o) => o.id !== id));
+      triggerToast(`Obaveza "${target.title}" je obrisana.`, null);
+
+      const refreshedLogs = await fetchAuditLogs();
+      setAuditLogs(refreshedLogs);
+    } catch (err) {
+      console.error('[App] failed to delete obligation:', err);
+      alert(err instanceof Error ? err.message : 'Greška pri brisanju obaveze.');
+    }
+  };
+
+  const handleClearAuditLogs = async () => {
+    try {
+      await clearAuditLogsApi();
+      setAuditLogs([]);
+    } catch (err) {
+      console.error('[App] failed to clear audit logs:', err);
+      alert(err instanceof Error ? err.message : 'Greška pri pražnjenju dnevnika aktivnosti.');
+    }
   };
 
   // Print Action Trigger
@@ -454,6 +315,8 @@ export default function App() {
   };
 
   // 9. Morning Cron Simulator (Section 6.3 08:00 AM Engine Simulator)
+  // NOTE: still uses a fixed "today" for the simulation — real time and real
+  // email delivery are Sprint 04/05, not this sprint.
   const runCronSimulation = () => {
     setCronLogs([]);
     setSimulatedEmails([]);
@@ -463,7 +326,6 @@ export default function App() {
     logsBuffer.push('08:00:00 AM - Pokrećem jutarnju Chronos provjeru...');
     logsBuffer.push('08:00:01 AM - Čitam aktivne rokove iz registra (Obligations)...');
 
-    // Filter obligations not completed
     const activeObligations = obligations.filter((o) => o.status !== 'ZAVRŠENO');
     logsBuffer.push(`08:00:02 AM - Pronađeno ${activeObligations.length} aktivnih/nezavršenih rokova.`);
 
@@ -475,11 +337,9 @@ export default function App() {
       const diffTime = oblDate.getTime() - todayLocal.getTime();
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-      // Section 6.3 rules: "Ako je due_date tačno za 3 dana od današnjeg datuma, generiše se HTML e-mail poruka"
-      // Since today is July 2nd, 2026, exact 3 days is July 5th, 2026.
       if (diffDays === 3) {
         logsBuffer.push(`08:00:03 AM - [OKIDAČ PRONAĐEN] Rok "${obl.title}" ističe za 3 dana (${obl.due_date.split('-').reverse().join('.')})!`);
-        
+
         const emailBody = `
           <div style="font-family: sans-serif; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px; max-width: 600px;">
             <div style="background-color: #035EA1; padding: 15px; border-radius: 8px 8px 0 0; color: white;">
@@ -488,7 +348,7 @@ export default function App() {
             <div style="padding: 20px; color: #1f2937;">
               <p>Poštovani,</p>
               <p>Ovo je automatski podsjetnik da administrativni rok za stavku dospijeva za tačno <strong>3 dana</strong>:</p>
-              
+
               <div style="background-color: #f8fafc; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #E30613;">
                 <p style="margin: 0 0 5px 0;"><strong>Obaveza:</strong> ${obl.title}</p>
                 <p style="margin: 0 0 5px 0;"><strong>Ustanova:</strong> ${obl.institution === 'IDSS' ? 'Internationale Deutsche Schule (IDSS)' : 'IMH Montessori House'}</p>
@@ -538,10 +398,10 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#F4F4F7] flex flex-col md:flex-row font-sans text-slate-800">
-      
+
       {/* Sidebar Navigation */}
       <aside className="w-full md:w-72 bg-slate-900 text-white flex flex-col shrink-0 md:sticky md:top-0 md:h-screen border-r border-slate-800 shadow-xl z-30 print:hidden font-sans">
-        
+
         {/* Sidebar Header Brand */}
         <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-950/40">
           <div className="flex items-center gap-3">
@@ -553,7 +413,7 @@ export default function App() {
               <span className="text-[9px] uppercase tracking-widest text-slate-400 mt-1 block font-semibold">IDSS & IMH SARAJEVO</span>
             </div>
           </div>
-          
+
           {/* Mobile hamburger toggle */}
           <button
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -567,7 +427,7 @@ export default function App() {
         <div className={`flex-1 flex flex-col justify-between p-4 space-y-8 ${
           isMobileMenuOpen ? 'block' : 'hidden md:flex'
         }`}>
-          
+
           <nav className="space-y-1.5">
             <span className="px-3 text-[10px] font-extrabold text-slate-500 uppercase tracking-widest block mb-2.5">
               Glavni meni
@@ -662,7 +522,7 @@ export default function App() {
 
       {/* Main Workspace Frame */}
       <main className="flex-1 flex flex-col min-w-0 print:p-0">
-        
+
         {/* Top Sticky Header */}
         <header className="h-20 bg-white border-b border-slate-200 flex items-center justify-between px-8 sticky top-0 z-20 print:hidden font-sans shadow-xs">
           <div className="flex flex-col">
@@ -690,8 +550,21 @@ export default function App() {
 
         {/* Core Content Container */}
         <div className="flex-1 p-6 max-w-7xl w-full mx-auto print:p-0">
-          
-          {currentView === 'DASHBOARD' && (
+
+          {dataLoading && (
+            <div className="flex items-center justify-center py-24">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Učitavanje podataka...</span>
+            </div>
+          )}
+
+          {!dataLoading && dataError && (
+            <div className="bg-red-50 border border-red-200 text-[#E30613] p-6 rounded-3xl text-sm font-semibold flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
+              <span>Greška pri učitavanju podataka: {dataError}</span>
+            </div>
+          )}
+
+          {!dataLoading && !dataError && currentView === 'DASHBOARD' && (
             <Dashboard
               obligations={obligations}
               onAddClick={() => {
@@ -707,10 +580,11 @@ export default function App() {
               onToggleChecklistItem={handleToggleChecklistItem}
               onTriggerPrint={handleTriggerPrint}
               currentUserRole={currentUser.role}
+              currentUserId={currentUser.id}
             />
           )}
 
-          {currentView === 'CALENDAR' && (
+          {!dataLoading && !dataError && currentView === 'CALENDAR' && (
             <CalendarView
               obligations={obligations}
               onSelectObligation={(obl) => {
@@ -720,10 +594,10 @@ export default function App() {
             />
           )}
 
-          {currentView === 'AUDIT_LOGS' && (
+          {!dataLoading && !dataError && currentView === 'AUDIT_LOGS' && (
             <AuditLogsView
               logs={auditLogs}
-              onClearLogs={() => setAuditLogs([])}
+              onClearLogs={handleClearAuditLogs}
               currentUserRole={currentUser.role}
             />
           )}
@@ -756,14 +630,18 @@ export default function App() {
         <div className="fixed bottom-6 right-6 bg-[#1F2937] text-white p-4.5 rounded-2xl shadow-xl border border-slate-700 max-w-sm flex items-center justify-between gap-4 z-50 animate-in fade-in slide-in-from-bottom-5 duration-300 print:hidden">
           <div className="flex-1">
             <p className="text-xs font-semibold">{undoToast.message}</p>
-            <p className="text-[10px] text-slate-400 mt-0.5">Imate 5 sekundi za opoziv radnje.</p>
+            {undoToast.undoable && (
+              <p className="text-[10px] text-slate-400 mt-0.5">Imate 5 sekundi za opoziv radnje.</p>
+            )}
           </div>
-          <button
-            onClick={handleUndoAction}
-            className="px-3 py-1.5 bg-[#FFCB29] text-[#1F2937] hover:bg-[#ffe284] font-extrabold text-xs rounded-lg transition-colors shadow-xs cursor-pointer whitespace-nowrap shrink-0 uppercase"
-          >
-            Opozovi (Undo)
-          </button>
+          {undoToast.undoable && (
+            <button
+              onClick={handleUndoAction}
+              className="px-3 py-1.5 bg-[#FFCB29] text-[#1F2937] hover:bg-[#ffe284] font-extrabold text-xs rounded-lg transition-colors shadow-xs cursor-pointer whitespace-nowrap shrink-0 uppercase"
+            >
+              Opozovi (Undo)
+            </button>
+          )}
         </div>
       )}
 
@@ -787,7 +665,7 @@ export default function App() {
             </div>
 
             <div className="p-6 space-y-5 max-h-[70vh] overflow-y-auto">
-              
+
               {/* Simulator Info */}
               <div className="bg-slate-50 rounded-2xl p-4.5 border border-slate-200 text-xs space-y-1.5">
                 <p className="font-bold text-slate-800 uppercase tracking-wide">Kako radi slanje podsjetnika?</p>
@@ -824,7 +702,7 @@ export default function App() {
                           <div><strong className="text-slate-700">Pošiljalac:</strong> Chronos - IDSS & IMH &lt;idsssarajevo@gmail.com&gt;</div>
                         </div>
                         {/* Body Rendered safely */}
-                        <div 
+                        <div
                           className="p-5 bg-white overflow-x-auto text-xs font-sans"
                           dangerouslySetInnerHTML={{ __html: email.body }}
                         />

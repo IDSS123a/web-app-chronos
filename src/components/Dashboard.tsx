@@ -20,6 +20,7 @@ interface DashboardProps {
   onToggleChecklistItem: (oblId: string, itemIdx: number) => void;
   onTriggerPrint: () => void;
   currentUserRole: string;
+  currentUserId: string;
 }
 
 export default function Dashboard({
@@ -30,9 +31,16 @@ export default function Dashboard({
   onToggleStatus,
   onToggleChecklistItem,
   onTriggerPrint,
-  currentUserRole
+  currentUserRole,
+  currentUserId
 }: DashboardProps) {
-  
+
+  // Mirrors server/features/obligations/domain.ts canEditObligation — UI-only
+  // convenience so STANDARD_USER doesn't see edit/complete controls on
+  // obligations they don't own (the server is the real enforcement point).
+  const canEditObligation = (obl: Obligation) =>
+    currentUserRole === 'SUPER_ADMIN' || obl.created_by === currentUserId;
+
   // States
   const [institutionFilter, setInstitutionFilter] = useState<'BOTH' | 'IDSS' | 'MONTESSORI'>('BOTH');
   const [searchQuery, setSearchQuery] = useState('');
@@ -550,7 +558,7 @@ export default function Dashboard({
                         <td className="py-4 px-4 text-right">
                           <div className="flex items-center justify-end gap-1.5">
                             {/* Complete trigger checkbox */}
-                            {obl.status !== 'ZAVRŠENO' && (
+                            {obl.status !== 'ZAVRŠENO' && canEditObligation(obl) && (
                               <button
                                 onClick={() => onToggleStatus(obl.id)}
                                 className="p-1.5 hover:bg-green-50 text-emerald-600 hover:text-emerald-700 rounded-lg border border-slate-200 hover:border-green-300 transition-colors cursor-pointer"
@@ -560,13 +568,15 @@ export default function Dashboard({
                               </button>
                             )}
 
-                            <button
-                              onClick={() => onEditClick(obl)}
-                              className="p-1.5 hover:bg-slate-100 text-slate-500 hover:text-slate-800 rounded-lg border border-slate-200 transition-colors cursor-pointer"
-                              title="Uredi"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </button>
+                            {canEditObligation(obl) && (
+                              <button
+                                onClick={() => onEditClick(obl)}
+                                className="p-1.5 hover:bg-slate-100 text-slate-500 hover:text-slate-800 rounded-lg border border-slate-200 transition-colors cursor-pointer"
+                                title="Uredi"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </button>
+                            )}
 
                             {currentUserRole === 'SUPER_ADMIN' && (
                               <button
@@ -602,8 +612,9 @@ export default function Dashboard({
                                     <input
                                       type="checkbox"
                                       checked={item.done}
+                                      disabled={!canEditObligation(obl)}
                                       onChange={() => onToggleChecklistItem(obl.id, itemIdx)}
-                                      className="rounded text-[#035EA1] focus:ring-[#035EA1] h-3.5 w-3.5"
+                                      className="rounded text-[#035EA1] focus:ring-[#035EA1] h-3.5 w-3.5 disabled:opacity-50 disabled:cursor-not-allowed"
                                     />
                                     <span className={`text-xs font-medium ${item.done ? 'line-through text-slate-400' : 'text-slate-700'}`}>
                                       {item.task}
@@ -685,8 +696,9 @@ export default function Dashboard({
                             <input
                               type="checkbox"
                               checked={item.done}
+                              disabled={!canEditObligation(obl)}
                               onChange={() => onToggleChecklistItem(obl.id, idx)}
-                              className="rounded text-[#035EA1] focus:ring-[#035EA1] h-3.5 w-3.5"
+                              className="rounded text-[#035EA1] focus:ring-[#035EA1] h-3.5 w-3.5 disabled:opacity-50 disabled:cursor-not-allowed"
                             />
                             <span className={`text-xs ${item.done ? 'line-through text-slate-400' : 'text-slate-600'}`}>
                               {item.task}
@@ -717,7 +729,7 @@ export default function Dashboard({
 
                   {/* Mobile Actions Drawer */}
                   <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
-                    {obl.status !== 'ZAVRŠENO' && (
+                    {obl.status !== 'ZAVRŠENO' && canEditObligation(obl) && (
                       <button
                         onClick={() => onToggleStatus(obl.id)}
                         className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 border border-green-200 text-emerald-700 font-bold text-xs rounded-xl bg-green-50/50 hover:bg-green-50 cursor-pointer"
@@ -726,13 +738,15 @@ export default function Dashboard({
                         Završi
                       </button>
                     )}
-                    
-                    <button
-                      onClick={() => onEditClick(obl)}
-                      className="inline-flex items-center justify-center p-2 border border-slate-200 text-slate-500 rounded-xl hover:bg-slate-50 cursor-pointer"
-                    >
-                      <Edit className="w-3.5 h-3.5" />
-                    </button>
+
+                    {canEditObligation(obl) && (
+                      <button
+                        onClick={() => onEditClick(obl)}
+                        className="inline-flex items-center justify-center p-2 border border-slate-200 text-slate-500 rounded-xl hover:bg-slate-50 cursor-pointer"
+                      >
+                        <Edit className="w-3.5 h-3.5" />
+                      </button>
+                    )}
 
                     {currentUserRole === 'SUPER_ADMIN' && (
                       <button
