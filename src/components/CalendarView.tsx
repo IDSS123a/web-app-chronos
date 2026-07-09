@@ -5,6 +5,7 @@
 
 import { useState } from 'react';
 import { Obligation, CATEGORY_STYLE_MAP, CategoryInfo } from '../types';
+import { formatDateLocal, getTodayDateString, formatDateBosnianLong } from '../lib/date-utils';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Info, AlertCircle } from 'lucide-react';
 
 const DEFAULT_CATEGORY_INFO: CategoryInfo = {
@@ -22,9 +23,11 @@ interface CalendarViewProps {
 }
 
 export default function CalendarView({ obligations, onSelectObligation }: CalendarViewProps) {
-  // Current date viewing state (default to July 2026 as per local time)
-  const [currentYear, setCurrentYear] = useState(2026);
-  const [currentMonth, setCurrentMonth] = useState(6); // 0-indexed, so 6 is July
+  const todayStr = getTodayDateString();
+
+  // Current date viewing state — defaults to the real current month/year.
+  const [currentYear, setCurrentYear] = useState(() => new Date().getFullYear());
+  const [currentMonth, setCurrentMonth] = useState(() => new Date().getMonth());
   const [viewType, setViewType] = useState<'MONTH' | 'WEEK'>('MONTH');
 
   const monthNames = [
@@ -81,11 +84,14 @@ export default function CalendarView({ obligations, onSelectObligation }: Calend
     nextMonthDay++;
   }
 
-  // Filter cells for WEEK view (e.g., around July 2nd, 2026 - cells containing local date)
-  // Let's generate a smart 7-day row of current week based on local date (2026-07-02 is a Thursday)
+  // Filter cells for WEEK view: the week containing today if the selected
+  // month/year is the real current month, otherwise the first week of
+  // whichever month is selected.
   const getWeekCells = () => {
-    // Let's construct the week containing July 2, 2026, or the current selected month's 1st-7th week
-    const targetDate = new Date(currentYear, currentMonth, 2); // default near start of selected month
+    const now = new Date();
+    const isViewingCurrentMonth = currentYear === now.getFullYear() && currentMonth === now.getMonth();
+    const anchorDay = isViewingCurrentMonth ? now.getDate() : 1;
+    const targetDate = new Date(currentYear, currentMonth, anchorDay);
     const dayOfWeek = targetDate.getDay(); // 0 = Sun, 1 = Mon
     const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
     
@@ -124,9 +130,9 @@ export default function CalendarView({ obligations, onSelectObligation }: Calend
     }
   };
 
-  // Check if a cell date is "Danas" (2026-07-02 as defined by current system time)
+  // Check if a cell date is "Danas"
   const isToday = (dateStr: string) => {
-    return dateStr === '2026-07-02';
+    return dateStr === todayStr;
   };
 
   // Get obligations matching a specific date
@@ -135,7 +141,7 @@ export default function CalendarView({ obligations, onSelectObligation }: Calend
   };
 
   // Selected date for day details pane
-  const [selectedDayDate, setSelectedDayDate] = useState<string | null>('2026-07-02');
+  const [selectedDayDate, setSelectedDayDate] = useState<string | null>(todayStr);
   const selectedDayObligations = selectedDayDate ? getObligationsForDate(selectedDayDate) : [];
 
   return (
@@ -272,12 +278,7 @@ export default function CalendarView({ obligations, onSelectObligation }: Calend
         <div className="border-b border-slate-200 pb-3 mb-4">
           <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block">Detaljan pregled za dan</span>
           <h3 className="text-base font-bold text-slate-800">
-            {selectedDayDate ? new Date(selectedDayDate).toLocaleDateString('bs-BA', {
-              weekday: 'long',
-              day: '2-digit',
-              month: 'long',
-              year: 'numeric'
-            }) : 'Odaberite datum'}
+            {selectedDayDate ? formatDateBosnianLong(new Date(selectedDayDate), true) : 'Odaberite datum'}
           </h3>
           {selectedDayDate && isToday(selectedDayDate) && (
             <span className="inline-flex items-center gap-1 text-[9px] font-extrabold text-slate-950 bg-amber-500 px-2 py-0.5 rounded mt-1.5 uppercase border border-amber-600/15">
@@ -299,7 +300,7 @@ export default function CalendarView({ obligations, onSelectObligation }: Calend
           ) : (
             selectedDayObligations.map((obl) => {
               const style = CATEGORY_STYLE_MAP[obl.category] || DEFAULT_CATEGORY_INFO;
-              const isPast = new Date(obl.due_date) < new Date('2026-07-02') && obl.status !== 'ZAVRŠENO';
+              const isPast = new Date(obl.due_date) < new Date(todayStr) && obl.status !== 'ZAVRŠENO';
 
               return (
                 <div

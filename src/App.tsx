@@ -31,6 +31,7 @@ import {
 } from 'lucide-react';
 import idssLogo from './assets/logos/idss-logo.png';
 import imhLogo from './assets/logos/imh-logo.png';
+import { formatDateLocal, getTodayDateString, formatDateBosnianLong } from './lib/date-utils';
 
 // Reverses the last "complete/reactivate" action via the same toggle-status
 // endpoint. Create/delete are intentionally not undoable here: STANDARD_USER
@@ -114,6 +115,14 @@ export default function App() {
 
   // Mobile sidebar menu toggler
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // Live clock — Sprint 05 replaced the hardcoded "Četvrtak, 2. juli 2026." /
+  // "08:00:00" header display with the real current date/time.
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const interval = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   // 5. Undo toast state (see UndoAction note above)
   const [undoAction, setUndoAction] = useState<UndoAction | null>(null);
@@ -327,8 +336,10 @@ export default function App() {
   };
 
   // 9. Morning Cron Simulator (Section 6.3 08:00 AM Engine Simulator)
-  // NOTE: still uses a fixed "today" for the simulation — real time and real
-  // email delivery are Sprint 04/05, not this sprint.
+  // NOTE: this still only simulates the scan/log output client-side — real
+  // scheduled execution and real email delivery are Sprint 06, not this one.
+  // Sprint 05 replaced the hardcoded '2026-07-02' simulated date with the
+  // real current date.
   const runCronSimulation = () => {
     setCronLogs([]);
     setSimulatedEmails([]);
@@ -341,7 +352,10 @@ export default function App() {
     const activeObligations = obligations.filter((o) => o.status !== 'ZAVRŠENO');
     logsBuffer.push(`08:00:02 AM - Pronađeno ${activeObligations.length} aktivnih/nezavršenih rokova.`);
 
-    const todayLocal = new Date('2026-07-02'); // Simulated today date
+    const todayLocal = new Date(getTodayDateString());
+    const inThreeDays = new Date(todayLocal);
+    inThreeDays.setDate(inThreeDays.getDate() + 3);
+    const inThreeDaysLabel = formatDateLocal(inThreeDays).split('-').reverse().join('.') + '.';
     const targetEmails: { to: string; subject: string; body: string }[] = [];
 
     activeObligations.forEach((obl) => {
@@ -383,7 +397,7 @@ export default function App() {
     });
 
     if (targetEmails.length === 0) {
-      logsBuffer.push('08:00:04 AM - Nema aktivnih obaveza koje ističu za tačno 3 dana od danas (05.07.2026.).');
+      logsBuffer.push(`08:00:04 AM - Nema aktivnih obaveza koje ističu za tačno 3 dana od danas (${inThreeDaysLabel}).`);
       logsBuffer.push('08:00:05 AM - Jutarnji podsjetnik završen bez slanja e-mailova.');
     } else {
       logsBuffer.push(`08:00:04 AM - Generisano ${targetEmails.length} podsjetnika. Šaljem HTTP POST zahtjev prema Google Apps Script Web App servisu...`);
@@ -544,14 +558,16 @@ export default function App() {
                currentView === 'CALENDAR' ? 'CHRONOS KALENDAR' : 'CHRONOS AUDIT LOGS'}
             </span>
             <p className="text-lg font-light text-slate-600 mt-0.5">
-              Četvrtak, 2. juli 2026.
+              {formatDateBosnianLong(now)}
             </p>
           </div>
 
           <div className="flex items-center gap-6">
             <div className="flex flex-col items-end">
-              <span className="text-xl font-mono font-bold text-slate-900 tracking-tight">08:00:00</span>
-              <span className="text-[9px] uppercase tracking-widest text-amber-600 font-bold">Lokalno Vrijeme (CEST)</span>
+              <span className="text-xl font-mono font-bold text-slate-900 tracking-tight">
+                {now.toLocaleTimeString('bs-BA', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
+              </span>
+              <span className="text-[9px] uppercase tracking-widest text-amber-600 font-bold">Lokalno Vrijeme</span>
             </div>
             <div className="h-10 w-[1px] bg-slate-200"></div>
             <div className="text-right text-[11px] text-slate-400 font-medium hidden sm:block">
@@ -683,7 +699,13 @@ export default function App() {
               <div className="bg-slate-50 rounded-2xl p-4.5 border border-slate-200 text-xs space-y-1.5">
                 <p className="font-bold text-slate-800 uppercase tracking-wide">Kako radi slanje podsjetnika?</p>
                 <p className="text-slate-500 leading-relaxed">
-                  Svakog jutra u <strong>08:00 AM</strong>, pozadinski servis se pokreće i skenira sve nezavršene rokove. Za one koji ističu za <strong>tačno 3 dana</strong> (za simulaciju: dospijeće <strong>05.07.2026.</strong> jer je danas 02.07.2026.), generiše se HTML email i šalje preko centralnog računa <code className="bg-slate-200 px-1 rounded font-mono">idsssarajevo@gmail.com</code>.
+                  Svakog jutra u <strong>08:00 AM</strong>, pozadinski servis se pokreće i skenira sve nezavršene rokove. Za one koji ističu za <strong>tačno 3 dana</strong> (za simulaciju: dospijeće{' '}
+                  <strong>{(() => {
+                    const d = new Date(getTodayDateString());
+                    d.setDate(d.getDate() + 3);
+                    return formatDateLocal(d).split('-').reverse().join('.') + '.';
+                  })()}</strong>{' '}
+                  jer je danas {formatDateLocal(now).split('-').reverse().join('.')}.), generiše se HTML email i šalje preko centralnog računa <code className="bg-slate-200 px-1 rounded font-mono">idsssarajevo@gmail.com</code>.
                 </p>
               </div>
 

@@ -6,6 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { Obligation, ChecklistItem, PriorityType, RecurringInterval, InstitutionType, UserSummary, CATEGORY_STYLE_MAP } from '../types';
 import { fetchUsers } from '../lib/api-client';
+import { getTodayDateString } from '../lib/date-utils';
 import { X, Plus, Trash2, HelpCircle, FileText, UploadCloud, AlertTriangle, Eye } from 'lucide-react';
 
 interface ObligationFormProps {
@@ -23,7 +24,7 @@ export default function ObligationForm({ obligation, isOpen, onClose, onSubmit, 
   const [title, setTitle] = useState('');
   const [institution, setInstitution] = useState<InstitutionType>('IDSS');
   const [category, setCategory] = useState('ADMINISTRACIJA');
-  const [dueDate, setDueDate] = useState('2026-07-02');
+  const [dueDate, setDueDate] = useState(getTodayDateString());
   const [responsiblePerson, setResponsiblePerson] = useState('');
   const [priority, setPriority] = useState<PriorityType>('SREDNJI');
   const [checklist, setChecklist] = useState<ChecklistItem[]>([]);
@@ -69,11 +70,10 @@ export default function ObligationForm({ obligation, isOpen, onClose, onSubmit, 
       setUploadError('');
       setWatcherIds([...obligation.watcher_ids]);
     } else {
-      // Set default date to today's date (July 2, 2026)
       setTitle('');
       setInstitution('IDSS');
       setCategory('ADMINISTRACIJA');
-      setDueDate('2026-07-02');
+      setDueDate(getTodayDateString());
       setResponsiblePerson('');
       setPriority('SREDNJI');
       setChecklist([]);

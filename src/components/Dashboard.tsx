@@ -5,6 +5,7 @@
 
 import { Fragment, useState } from 'react';
 import { Obligation, CATEGORY_STYLE_MAP, PriorityType, ObligationStatus } from '../types';
+import { formatDateLocal, getTodayDateString, getCurrentSchoolYearRange, getBosnianMonthName } from '../lib/date-utils';
 import { 
   Search, Plus, Printer, AlertTriangle, CheckCircle, 
   Clock, CheckSquare, Eye, Edit, Trash2, Calendar, 
@@ -55,25 +56,34 @@ export default function Dashboard({
   const [sortBy, setSortBy] = useState<'due_date' | 'priority' | 'title'>('due_date');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
-  // Today is July 2nd, 2026 (as defined in our system environment)
-  const todayStr = '2026-07-02';
+  const todayStr = getTodayDateString();
   const today = new Date(todayStr);
+  const schoolYear = getCurrentSchoolYearRange();
+  const currentMonthPrefix = todayStr.slice(0, 7); // YYYY-MM
+  const currentMonthNameCapitalized = getBosnianMonthName(today.getMonth(), true);
+  const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+  const lastDayOfMonthLabel = `${formatDateLocal(lastDayOfMonth).split('-').reverse().join('.')}.`;
 
   // Date Presets Handler
   const applyPreset = (preset: 'WEEK' | 'MONTH' | 'SCHOOL_YEAR') => {
+    const now = new Date();
     if (preset === 'WEEK') {
-      // 2026-07-02 is Thursday.
-      // Monday is 2026-06-29, Sunday is 2026-07-05
-      setStartDate('2026-06-29');
-      setEndDate('2026-07-05');
+      const dayOfWeek = now.getDay(); // 0 = Sun
+      const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+      const monday = new Date(now);
+      monday.setDate(now.getDate() + mondayOffset);
+      const sunday = new Date(monday);
+      sunday.setDate(monday.getDate() + 6);
+      setStartDate(formatDateLocal(monday));
+      setEndDate(formatDateLocal(sunday));
     } else if (preset === 'MONTH') {
-      // Current month (July 2026)
-      setStartDate('2026-07-01');
-      setEndDate('2026-07-31');
+      const first = new Date(now.getFullYear(), now.getMonth(), 1);
+      const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      setStartDate(formatDateLocal(first));
+      setEndDate(formatDateLocal(last));
     } else if (preset === 'SCHOOL_YEAR') {
-      // Fixed range for 2026/2027 school year
-      setStartDate('2026-09-01');
-      setEndDate('2027-08-31');
+      setStartDate(schoolYear.startDate);
+      setEndDate(schoolYear.endDate);
     }
   };
 
@@ -217,12 +227,12 @@ export default function Dashboard({
         {/* Due in July 2026 count */}
         <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-xs flex items-center justify-between hover:shadow-sm transition-all">
           <div>
-            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest block">Ovaj mjesec (Juli)</span>
+            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest block">Ovaj mjesec ({currentMonthNameCapitalized})</span>
             <span id="stat-july-count" className="text-3xl font-mono font-bold text-amber-600 block mt-1.5">
-              {obligations.filter(o => o.due_date.startsWith('2026-07') && o.status !== 'ZAVRŠENO').length}
+              {obligations.filter(o => o.due_date.startsWith(currentMonthPrefix) && o.status !== 'ZAVRŠENO').length}
             </span>
             <span className="text-[10px] text-slate-400 font-medium block mt-1.5">
-              Rokovi do 31.07.2026.
+              Rokovi do {lastDayOfMonthLabel}
             </span>
           </div>
           <div className="w-12 h-12 rounded-2xl bg-amber-50/60 border border-amber-100/50 flex items-center justify-center text-amber-600 shrink-0">
@@ -401,7 +411,7 @@ export default function Dashboard({
             onClick={() => applyPreset('SCHOOL_YEAR')}
             className="px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 text-amber-800 text-xs font-bold rounded-xl transition-all cursor-pointer"
           >
-            Školska godina 2026/2027
+            Školska godina {schoolYear.label}
           </button>
         </div>
 

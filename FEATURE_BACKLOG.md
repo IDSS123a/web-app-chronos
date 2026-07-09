@@ -16,7 +16,7 @@
 | 02 | Obligations API & Server-side Audit | CRUD kroz pravi backend, server-side audit log, RBAC enforcement | DONE |
 | 03 | Vidljivost obaveza (Watchers) | Kreator bira ko vidi obavezu; zaštita finansijski osjetljivih podataka; IDSS/IMH logotipi | DONE |
 | 04 | File Attachments | Supabase Storage upload/download, validacija | DONE |
-| 05 | Recurring Engine & Real Time | Ukloniti hardkodovani "danas", server-side recurring logika | TODO |
+| 05 | Real Time | Ukloniti hardkodovani "danas", ispravka bs-BA Intl locale bug-a | DONE |
 | 06 | Real Email Reminders | Resend integracija, `node-cron` 08:00 job | TODO |
 | 07 | Calendar, Print & UX Polish | Kalendar/print prema real API-ju, mobile provjera | TODO |
 | 08 | Deployment | Render/hosting, env varijable, RLS hardening, Sentry | TODO |
@@ -72,11 +72,12 @@ osnovu onoga što je stvarno završeno u prethodnom).
 - `ObligationForm` drag&drop povezan na stvarni upload
 - Uklanjanje mock `drive.google.com` linkova
 
-## SPRINT 05 — Real Time (uklanjanje hardkodovanog "danas")
+## SPRINT 05 — Real Time (uklanjanje hardkodovanog "danas") — DONE
 
 - Uklanjanje hardkodovanog `'2026-07-02'` kao "danas" kroz cijelu aplikaciju (Dashboard filteri/statistika, CalendarView, cron simulator)
-- Provjera vremenske zone (Europe/Sarajevo)
-- (Recurring cycle logika je već prenesena server-side u Sprint 02 — ovdje se samo uklanja ovisnost o fiksnom datumu)
+- Nova `src/lib/date-utils.ts` — jedinstveni izvor istine za "danas" i bosansko formatiranje datuma
+- Usput ispravljen bs-BA Intl locale bug (postojao od originalnog koda)
+- Server-side vremenska zona (Europe/Sarajevo) za pravi cron ostaje za Sprint 06
 
 ## SPRINT 06 — Real Email Reminders
 

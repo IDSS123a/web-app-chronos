@@ -4,6 +4,7 @@
  */
 
 import { Obligation, CATEGORY_STYLE_MAP } from '../types';
+import { formatDateLocal } from '../lib/date-utils';
 
 interface PrintTemplateProps {
   obligations: Obligation[];
@@ -49,7 +50,7 @@ export default function PrintTemplate({ obligations, institutionFilter, dateRang
             </p>
           </div>
           <div className="text-right text-xs text-slate-500 font-sans">
-            <div>Datum izvještaja: {new Date().toLocaleDateString('bs-BA')}</div>
+            <div>Datum izvještaja: {formatDateLocal(new Date()).split('-').reverse().join('.')}.</div>
             <div>Centralni sistem: idsssarajevo@gmail.com</div>
           </div>
         </div>
