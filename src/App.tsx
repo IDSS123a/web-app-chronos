@@ -115,6 +115,15 @@ export default function App() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedObligation, setSelectedObligation] = useState<Obligation | null>(null);
 
+  // Mirrors exactly what Dashboard currently shows (after institution/search/
+  // status/date filters) so "Printaj izvještaj" prints the user's actual
+  // current view instead of every obligation regardless of filters.
+  const [printView, setPrintView] = useState<{
+    obligations: Obligation[];
+    institutionFilter: 'BOTH' | 'IDSS' | 'MONTESSORI';
+    dateRange: { startDate: string; endDate: string };
+  }>({ obligations: [], institutionFilter: 'BOTH', dateRange: { startDate: '', endDate: '' } });
+
   // Mobile sidebar menu toggler
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -260,6 +269,7 @@ export default function App() {
     } catch (err) {
       console.error('[App] failed to save obligation:', err);
       alert(err instanceof Error ? err.message : 'Greška pri čuvanju obaveze.');
+      throw err; // let ObligationForm know the save failed, so it stays open
     }
   };
 
@@ -561,6 +571,7 @@ export default function App() {
               onTriggerPrint={handleTriggerPrint}
               currentUserRole={currentUser.role}
               currentUserId={currentUser.id}
+              onVisibleObligationsChange={setPrintView}
             />
           )}
 
@@ -600,9 +611,9 @@ export default function App() {
 
       {/* 11. Printable Layout (Rendered in background, active for Print Engine via media queries) */}
       <PrintTemplate
-        obligations={obligations}
-        institutionFilter="BOTH"
-        dateRange={{ startDate: '', endDate: '' }}
+        obligations={printView.obligations}
+        institutionFilter={printView.institutionFilter}
+        dateRange={printView.dateRange}
       />
 
       {/* 12. Floating Undo Toast Notification popup (PRD User Story 1 toast requirement) */}

@@ -13,7 +13,7 @@ interface ObligationFormProps {
   obligation?: Obligation | null; // If passed, we are in EDIT mode
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: Partial<Obligation>, attachmentFile?: File | null) => void;
+  onSubmit: (data: Partial<Obligation>, attachmentFile?: File | null) => Promise<void>;
   currentUserId: string;
 }
 
@@ -53,6 +53,12 @@ export default function ObligationForm({ obligation, isOpen, onClose, onSubmit, 
   // Validation errors
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // Saving state — keeps the modal open (with a disabled/spinner submit
+  // button) until the async save (and possible attachment upload) actually
+  // resolves, instead of closing instantly and leaving the user unsure
+  // whether the obligation was saved.
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   // Fill data if in edit mode
   useEffect(() => {
     if (obligation) {
@@ -85,6 +91,7 @@ export default function ObligationForm({ obligation, isOpen, onClose, onSubmit, 
       setWatcherIds([]);
     }
     setErrors({});
+    setIsSubmitting(false);
   }, [obligation, isOpen]);
 
   if (!isOpen) return null;
@@ -147,8 +154,9 @@ export default function ObligationForm({ obligation, isOpen, onClose, onSubmit, 
   };
 
   // Form Submit with built-in PRD validation rules (Section 6.2)
-  const handleFormSubmit = (e: React.FormEvent) => {
+  const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
     const newErrors: Record<string, string> = {};
 
     if (!title || title.trim().length < 3) {
@@ -197,8 +205,15 @@ export default function ObligationForm({ obligation, isOpen, onClose, onSubmit, 
       payload.status = 'NOVO';
     }
 
-    onSubmit(payload, attachment);
-    onClose();
+    setIsSubmitting(true);
+    try {
+      await onSubmit(payload, attachment);
+      onClose();
+    } catch {
+      // App.tsx already surfaced the error (alert); keep the modal open
+      // with the user's input intact so nothing typed is lost.
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -563,9 +578,18 @@ export default function ObligationForm({ obligation, isOpen, onClose, onSubmit, 
                 <FileText className="w-5 h-5 text-slate-500 shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-bold text-slate-700 truncate font-mono">{existingAttachmentName}</p>
-                  <p className="text-[10px] text-slate-400 font-medium">Postojeći dokument na Google Drive-u</p>
+                  <p className="text-[10px] text-slate-400 font-medium">Postojeći dokument u sigurnom skladištu</p>
                 </div>
-                <p className="text-[10px] font-extrabold text-amber-600 bg-amber-500/10 border border-amber-500/20 px-2 py-1 rounded">DRIVE LINK</p>
+                {obligation?.attachment_url && (
+                  <a
+                    href={obligation.attachment_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[10px] font-extrabold text-amber-600 bg-amber-500/10 border border-amber-500/20 px-2 py-1 rounded hover:bg-amber-500/20 transition-colors shrink-0"
+                  >
+                    OTVORI
+                  </a>
+                )}
               </div>
             )}
 
@@ -579,16 +603,28 @@ export default function ObligationForm({ obligation, isOpen, onClose, onSubmit, 
             <button
               type="button"
               onClick={onClose}
-              className="px-6 py-3 border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold text-xs uppercase tracking-widest rounded-full transition-all cursor-pointer"
+              disabled={isSubmitting}
+              className="px-6 py-3 border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold text-xs uppercase tracking-widest rounded-full transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Odustani
             </button>
             <button
               id="form-submit-button"
               type="submit"
-              className="px-8 py-3 bg-slate-900 text-white hover:bg-slate-800 font-extrabold text-xs uppercase tracking-widest rounded-full transition-all cursor-pointer flex items-center gap-2 shadow-sm"
+              disabled={isSubmitting}
+              className="px-8 py-3 bg-slate-900 text-white hover:bg-slate-800 font-extrabold text-xs uppercase tracking-widest rounded-full transition-all cursor-pointer flex items-center gap-2 shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              {isEditMode ? 'Sačuvaj izmjene' : 'Zavedi obavezu'}
+              {isSubmitting ? (
+                <>
+                  <svg className="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  Čuvanje...
+                </>
+              ) : (
+                isEditMode ? 'Sačuvaj izmjene' : 'Zavedi obavezu'
+              )}
             </button>
           </div>
 

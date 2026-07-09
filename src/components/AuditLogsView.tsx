@@ -5,17 +5,18 @@
 
 import { useState } from 'react';
 import { AuditLog } from '../types';
-import { Search, Eye, History, Trash2, Edit3, PlusCircle, CheckCircle, ShieldAlert } from 'lucide-react';
+import { Search, Eye, History, Trash2, Edit3, PlusCircle, CheckCircle, ShieldAlert, RefreshCw } from 'lucide-react';
 
 interface AuditLogsViewProps {
   logs: AuditLog[];
-  onClearLogs?: () => void;
+  onClearLogs?: () => Promise<void>;
   currentUserRole: string;
 }
 
 export default function AuditLogsView({ logs, onClearLogs, currentUserRole }: AuditLogsViewProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [actionFilter, setActionFilter] = useState<string>('ALL');
+  const [isClearing, setIsClearing] = useState(false);
 
   const filteredLogs = logs.filter((log) => {
     const matchesSearch =
@@ -104,14 +105,20 @@ export default function AuditLogsView({ logs, onClearLogs, currentUserRole }: Au
         </div>
         {currentUserRole === 'SUPER_ADMIN' && onClearLogs && (
           <button
-            onClick={() => {
-              if (confirm('Jeste li sigurni da želite očistiti cijeli dnevnik aktivnosti?')) {
-                onClearLogs();
+            onClick={async () => {
+              if (!confirm('Jeste li sigurni da želite očistiti cijeli dnevnik aktivnosti?')) return;
+              setIsClearing(true);
+              try {
+                await onClearLogs();
+              } finally {
+                setIsClearing(false);
               }
             }}
-            className="px-5 py-2.5 text-xs font-bold bg-white text-[#E30613] hover:bg-red-50 rounded-full transition-all border border-red-200 cursor-pointer uppercase tracking-wider"
+            disabled={isClearing}
+            className="px-5 py-2.5 text-xs font-bold bg-white text-[#E30613] hover:bg-red-50 rounded-full transition-all border border-red-200 cursor-pointer uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1.5"
           >
-            Isprazni logove
+            {isClearing && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+            {isClearing ? 'Pražnjenje...' : 'Isprazni logove'}
           </button>
         )}
       </div>

@@ -29,3 +29,9 @@
 [2026-07-09] [SPRINT_06] Pravi email podsjetnici preko Resend-a: node-cron job 08:00 Europe/Sarajevo, ručni SUPER_ADMIN trigger, primaoci = kreator+watchers+SUPER_ADMIN (CD-008, zamjenjuje mock "direktor+sekretar").
 [2026-07-09] [SPRINT_06] Testirano uživo — scan/detekcija ispravno radi; stvarna dostava blokirana Resend sandbox ograničenjem (samo vlasnik naloga dok se ne verificira domena) — CD-003 ažuriran.
 [2026-07-09] [SPRINT_06] UX ispravka: "Školska godina" brzi filter sada ima strelice za navigaciju kroz školske godine (prije: samo tekuća, bez mogućnosti odabira naredne/prethodne).
+[2026-07-09] [SPRINT_07] "Printaj izvještaj" sada prati stvarne Dashboard filtere (institucija, status, datumski raspon) umjesto da uvijek printa sve obaveze — testirano uživo sa IDSS/IMH filterima.
+[2026-07-09] [SPRINT_07] Dodano loading stanje na ObligationForm submit dugme — forma se ne zatvara dok se spremanje/upload priloga stvarno ne završi; greška ostavlja formu otvorenom umjesto da nestane bez traga.
+[2026-07-09] [SPRINT_07] Dodano loading stanje (spinner + disable) na Dashboard red-akcije (Završi/Obriši) i AuditLogs "Isprazni logove" dugme — sprječava dvostruki klik.
+[2026-07-09] [SPRINT_07] Ispravljen zastarjeli "Postojeći dokument na Google Drive-u" tekst u ObligationForm (ostatak iz mock faze prije Sprint 04) — sada pokazuje stvaran link ka Supabase Storage prilogu.
+[2026-07-09] [SPRINT_07] Uklonjena netačna tvrdnja "Zapamti me na ovom računaru (30 dana)" sa Login ekrana — nikad nije bila stvarno ožičena ni na jednu funkcionalnost.
+[2026-07-09] [SPRINT_07] Potvrđeno uživo: Dashboard, Kalendar, AuditLogs i ObligationForm ispravno rade na mobilnom viewport-u (375px).

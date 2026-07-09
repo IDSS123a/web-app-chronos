@@ -18,7 +18,7 @@
 | 04 | File Attachments | Supabase Storage upload/download, validacija | DONE |
 | 05 | Real Time | Ukloniti hardkodovani "danas", ispravka bs-BA Intl locale bug-a | DONE |
 | 06 | Real Email Reminders | Resend integracija, `node-cron` 08:00 job | DONE |
-| 07 | Calendar, Print & UX Polish | Kalendar/print prema real API-ju, mobile provjera | TODO |
+| 07 | Calendar, Print & UX Polish | Kalendar/print prema real API-ju, mobile provjera | DONE |
 | 08 | Deployment | Render/hosting, env varijable, RLS hardening, Sentry | TODO |
 | 09+ | Backlog / Nice-to-have | Vidi ispod | TODO |
 
@@ -86,11 +86,17 @@ osnovu onoga što je stvarno završeno u prethodnom).
 - HTML email template (zadržati postojeći dizajn iz `App.tsx` cron simulatora kao osnovu)
 - SUPER_ADMIN ruta za ručno okidanje (test) koja poziva istu logiku kao cron
 
-## SPRINT 07 — Calendar, Print & UX Polish
+## SPRINT 07 — Calendar, Print & UX Polish — DONE
 
-- `CalendarView` i `PrintTemplate` povezani na real API podatke
-- Provjera svih ekrana na mobilnom viewport-u (Commander FEATURE_LIFECYCLE Step 5)
+- `PrintTemplate` sada prima Dashboard-ove aktivne filtere (institucija,
+  status, datumski raspon) umjesto da uvijek printa sve obaveze;
+  `CalendarView` je real-API već bio od Sprint 05
+- Provjera svih ekrana na mobilnom viewport-u (Commander FEATURE_LIFECYCLE
+  Step 5) — bez blokirajućih problema
 - Loading/empty/error stanja za sve async akcije (Commander DONE_CHECKLIST)
+  — ObligationForm submit, Dashboard toggle-status/delete, AuditLogs clear
+- Usput: ispravljen zastarjeli "Google Drive" tekst i netačna "30 dana"
+  remember-me tvrdnja, oboje ostaci iz mock faze — vidi `sprints/SPRINT_07.md`
 
 ## SPRINT 08 — Deployment
 

@@ -126,11 +126,13 @@ export default function Login({ onLoginSuccess }: LoginProps) {
               </div>
             </div>
 
-            {/* Long Session Note */}
+            {/* Session persistence note — Supabase keeps the session in this
+                browser via a refresh token until explicit logout, so there's
+                no separate "remember me" toggle to wire up here. */}
             <div className="flex items-center justify-between text-[11px] text-slate-500 bg-slate-50 border border-slate-100 p-3 rounded-2xl">
               <span className="flex items-center gap-1.5 font-medium">
                 <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                Zapamti me na ovom računaru (30 dana)
+                Ostajete prijavljeni na ovom računaru do odjave
               </span>
             </div>
 
