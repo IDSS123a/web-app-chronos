@@ -19,7 +19,7 @@
 | 05 | Real Time | Ukloniti hardkodovani "danas", ispravka bs-BA Intl locale bug-a | DONE |
 | 06 | Real Email Reminders | Resend integracija, `node-cron` 08:00 job | DONE |
 | 07 | Calendar, Print & UX Polish | Kalendar/print prema real API-ju, mobile provjera | DONE |
-| 08 | Deployment | Render/hosting, env varijable, RLS hardening, Sentry | TODO |
+| 08 | Deployment | Render/hosting, env varijable, RLS hardening, Sentry | DONE |
 | 09+ | Backlog / Nice-to-have | Vidi ispod | TODO |
 
 **Napomena o renumeraciji (2026-07-09):** Sprint 03 je originalno bio planiran
@@ -98,12 +98,15 @@ osnovu onoga što je stvarno završeno u prethodnom).
 - Usput: ispravljen zastarjeli "Google Drive" tekst i netačna "30 dana"
   remember-me tvrdnja, oboje ostaci iz mock faze — vidi `sprints/SPRINT_07.md`
 
-## SPRINT 08 — Deployment
+## SPRINT 08 — Deployment — DONE
 
-- Render (ili odabrani host) deployment jednog Node servisa
-- `.env` production varijable, Resend domain verifikacija
+- Render Blueprint (`render.yaml`) za jednog Node servisa (CD-006 potvrđen)
+- `DEPLOYMENT.md` — vodič za produkcijske env varijable i Resend domain
+  verifikaciju (korisnikovi ručni koraci)
 - RLS hardening review (security-review prompt iz Commander PROMPT_LIBRARY)
-- Sentry error tracking (Commander E-8)
+  — vidi `sprints/SPRINT_08.md` za detalje šta je ispravljeno vs. potvrđeno
+  kao već bezbjedno
+- Sentry error tracking — **odloženo**, vidi DECISION_LOG CD-009
 
 ---
 

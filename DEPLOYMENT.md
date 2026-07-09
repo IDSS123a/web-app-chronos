@@ -1,0 +1,123 @@
+# DEPLOYMENT.md — Chronos u produkciji
+
+Ovo je vodič korak-po-korak za postavljanje Chronos aplikacije na pravi,
+javno dostupan URL. Namijenjen je Davoru (ne treba prethodno programersko
+znanje) — svaki korak se radi klikanjem u web pregledniku.
+
+Neke od ovih koraka (kreiranje naloga, unos tajnih ključeva) AI asistent ne
+smije raditi umjesto tebe iz sigurnosnih razloga — zato su ovdje detaljno
+opisani.
+
+---
+
+## Pregled arhitekture
+
+Cijela aplikacija (i sajt koji vidiš i pozadinski servis koji šalje
+podsjetnike) radi kao **jedan servis** na Render.com (CD-006 u
+`DECISION_LOG.md`). Baza podataka ostaje na Supabase-u (već postavljeno).
+Nema posebne domene za sada — koristi se besplatna Render poddomena (npr.
+`chronos-idss.onrender.com`).
+
+---
+
+## Korak 1 — Kreiraj Render nalog
+
+1. Idi na [render.com](https://render.com) i klikni "Get Started".
+2. Prijavi se preko svog GitHub naloga (istog onog gdje je `IDSS123a/web-app-chronos` repozitorij) — ovo automatski daje Renderu pristup da vidi kod.
+
+## Korak 2 — Kreiraj novi servis preko Blueprint-a
+
+1. U Render dashboard-u klikni **New +** → **Blueprint**.
+2. Odaberi repozitorij `IDSS123a/web-app-chronos`.
+3. Render će automatski pronaći `render.yaml` fajl iz repozitorija i
+   predložiti tačno jedan servis: `chronos-idss`.
+4. Klikni **Apply** / **Create**.
+
+## Korak 3 — Unesi tajne ključeve (env varijable)
+
+Render će za svaku od dolje navedenih varijabli tražiti da je ručno unesešs
+(namjerno nisu u kodu, radi sigurnosti). Otvori svoj `.env` fajl na računaru
+(ili pitaj AI asistenta da ti pokaže koje vrijednosti već postoje lokalno,
+BEZ da ih ispisuje u razgovoru) i prekopiraj tačno iste vrijednosti:
+
+| Varijabla | Odakle | Napomena |
+|---|---|---|
+| `SUPABASE_URL` | Supabase dashboard → Project Settings → API | Isto što i u lokalnom `.env` |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase dashboard → Project Settings → API | **Tajno** — nikad ne dijeliti javno |
+| `VITE_SUPABASE_URL` | Isto kao `SUPABASE_URL` | |
+| `VITE_SUPABASE_ANON_KEY` | Supabase dashboard → Project Settings → API | Javni ključ, ali i dalje kopiraj tačno |
+| `RESEND_API_KEY` | Resend dashboard → API Keys | Isto što i u lokalnom `.env` |
+| `RESEND_FROM_EMAIL` | Tvoj odabrani "šalje od" email | Vidi Korak 5 ispod prije nego što ovo promijeniš |
+
+`NODE_ENV=production` je već postavljen automatski preko `render.yaml`.
+
+## Korak 4 — Sačekaj prvi deploy
+
+Render će sada pokrenuti `npm install && npm run build`, zatim
+`npm run start`. Prvi deploy traje 3-5 minuta. Prati napredak u "Logs" tabu.
+Kada vidiš u logovima:
+
+```
+[chronos-server] Reminder cron job registered: 08:00 Europe/Sarajevo daily
+[chronos-server] Express listening on http://localhost:XXXX (production, serving built frontend)
+```
+
+...aplikacija je uživo. Render ti daje URL na vrhu stranice (npr.
+`https://chronos-idss.onrender.com`) — otvori ga i prijavi se kao i obično.
+
+**Napomena o besplatnom tier-u:** Render-ov besplatni plan "uspava" servis
+nakon perioda neaktivnosti, pa prvi zahtjev nakon pauze može potrajati
+10-30 sekundi dok se probudi. Za instituciju koja koristi Chronos svakodnevno
+ovo obično nije problem, ali ako smeta, razmisliti o plaćenom "Starter"
+planu ($7/mjesec) koji ostaje uvijek aktivan — posebno važno jer i jutarnji
+08:00 podsjetnik zahtijeva da servis bude budan u tom trenutku.
+
+---
+
+## Korak 5 — Verificiraj Resend domenu (za stvarnu dostavu emaila)
+
+Ovo je odvojeno od deployment-a, ali blokira da podsjetnici stvarno stignu
+zaposlenima (vidi `DECISION_LOG.md` CD-003 i `sprints/SPRINT_06.md`).
+
+1. Idi na [resend.com/domains](https://resend.com/domains) i klikni "Add Domain".
+2. Unesi domenu institucije (npr. `idss.ba` ili poddomenu poput `mail.idss.ba`).
+3. Resend će dati 2-3 DNS zapisa (obično TXT i CNAME) koje treba dodati kod
+   registrara domene (ko god upravlja DNS-om za idss.ba/idss.edu.ba).
+4. Nakon što DNS zapisi budu vidljivi (obično do 24h, često brže), Resend
+   automatski verificira domenu.
+5. Tek tada promijeni `RESEND_FROM_EMAIL` u Render env varijablama na
+   pravu institucionalnu adresu (npr. `podsjetnici@idss.ba`) i ponovo
+   deploy-uj (Render → Manual Deploy).
+
+Do tada, sistem radi ispravno, ali stvarno slanje uspijeva samo ka
+`idsssarajevo@gmail.com` (vlasnik Resend naloga) — svi ostali primaoci
+dobijaju grešku koja se ispravno bilježi u AuditLogs.
+
+## Korak 6 — Uključi zaštitu od kompromitovanih lozinki (Supabase)
+
+Sigurnosni pregled (Sprint 08) je pronašao da ova opcija nije uključena.
+Ovo je jedan klik u Supabase dashboard-u:
+
+1. Otvori Supabase projekat `web-app-chronos`.
+2. Idi na **Authentication** → **Policies** (ili **Providers** → **Email**,
+   zavisno od verzije dashboard-a) i pronađi "Leaked password protection" /
+   "Prevent use of leaked passwords".
+3. Uključi tu opciju.
+
+Ovo sprječava da bilo koji korisnik postavi lozinku koja je poznata iz
+javno procurjelih baza (provjerava se preko HaveIBeenPwned.org, bez slanja
+stvarne lozinke).
+
+---
+
+## Šta AI asistent NIJE mogao uraditi umjesto tebe (i zašto)
+
+- Kreiranje Render naloga i unos tajnih ključeva — sigurnosno pravilo:
+  asistent nikad ne unosi lozinke/API ključeve niti kreira naloge u tvoje ime.
+- DNS zapisi za Resend domenu — zahtijeva pristup registraru domene koji
+  asistent nema (i ne bi smio imati).
+- Leaked-password-protection toggle — Supabase Auth podešavanje dostupno
+  samo kroz dashboard, van dometa dostupnih alata u ovoj sesiji.
+
+Sve ostalo (kod, konfiguracija, `render.yaml`, sigurnosni pregled baze) je
+već pripremljeno i testirano.

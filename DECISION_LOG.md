@@ -99,7 +99,14 @@ za `node-cron`, jednostavan git-push deploy).
 lakše sa jednim deployment ciljem i jednim URL-om nego sa odvojenim
 frontend/backend hostingom. Persistent proces (za razliku od serverless)
 prirodno podržava `node-cron` (vidi CD-004).
-**Status:** Predloženo — čeka potvrdu prije Sprint 07 (Deployment).
+**Status:** Potvrđeno (2026-07-09, prije Sprint 08). Render besplatna
+poddomena (npr. `chronos-idss.onrender.com`) za sada — prilagođena domena
+(npr. `chronos.idss.ba`) ostaje otvorena backlog stavka bez izmjene koda
+kad institucija to zatraži. Implementacija: `server/index.ts` servira
+`dist/` statički kad je `NODE_ENV=production`, port dolazi iz Renderovog
+`PORT` u produkciji (lokalni dev nastavlja koristiti `API_PORT`, vidi
+[[feedback-chronos-dev-environment-quirks]]). Vidi `render.yaml` i
+`DEPLOYMENT.md` za tačne korake.
 
 ---
 
@@ -128,6 +135,23 @@ podsjetnik o njoj.
 **Upgrade path:** Ako se pokaže da neki watchers ne žele email (samo žele
 vidjeti u aplikaciji), razmotriti odvojenu "email preference" postavku po
 korisniku — nije zatraženo, ne implementirati unaprijed.
+
+---
+
+## CD-009 — Sentry error tracking odloženo (nije implementirano u Sprint 08)
+
+**Datum:** 2026-07-09
+**Odluka:** Ne dodavati Sentry (ili sličan error-tracking servis) u v1
+deployment, iako je bio naveden u originalnom Sprint 08 opsegu.
+**Razlog:** Zahtijeva kreiranje vanjskog naloga koji AI asistent ne smije
+raditi u korisnikovo ime (sigurnosno pravilo), a za instituciju sa 7
+korisnika server-side console logovi (vidljivi u Render "Logs" tabu) i
+postojeći AuditLogs mehanizam su dovoljni za v1. Korisnik je eksplicitno
+potvrdio ovaj izbor (AskUserQuestion, 2026-07-09).
+**Upgrade path:** Ostaje u backlogu. Ako se doda kasnije, korisnik prvo
+kreira besplatan Sentry nalog i unosi DSN ključ u `.env`/Render env vars —
+kod integracije (par linija u `server/index.ts` i `src/App.tsx`) je tada
+trivijalan dodatak, ne zahtijeva arhitekturnu promjenu.
 
 ---
 

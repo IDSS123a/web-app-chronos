@@ -35,3 +35,6 @@
 [2026-07-09] [SPRINT_07] Ispravljen zastarjeli "Postojeći dokument na Google Drive-u" tekst u ObligationForm (ostatak iz mock faze prije Sprint 04) — sada pokazuje stvaran link ka Supabase Storage prilogu.
 [2026-07-09] [SPRINT_07] Uklonjena netačna tvrdnja "Zapamti me na ovom računaru (30 dana)" sa Login ekrana — nikad nije bila stvarno ožičena ni na jednu funkcionalnost.
 [2026-07-09] [SPRINT_07] Potvrđeno uživo: Dashboard, Kalendar, AuditLogs i ObligationForm ispravno rade na mobilnom viewport-u (375px).
+[2026-07-09] [SPRINT_08] Produkcijski mod: `server/index.ts` sada servira build-ovan frontend + `/api/*` iz jednog procesa (CD-006), sa `render.yaml` za jednoklik Render deploy — testirano uživo na lokalnom test portu.
+[2026-07-09] [SPRINT_08] Sigurnosni/performance pregled Supabase baze: dodani indeksi na neindeksirane foreign key-eve, optimizovana `profiles` RLS politika; potvrđeno da `obligations`/`audit_logs`/`obligation_watchers` bez RLS politika je namjeravano bezbjedno (deny-all za anon pristup).
+[2026-07-09] [SPRINT_08] Novi `DEPLOYMENT.md` vodič za korisnikove ručne korake (Render nalog, env varijable, Resend domain, Supabase leaked-password-protection toggle).

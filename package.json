@@ -9,6 +9,7 @@
     "dev:server": "cross-env NODE_OPTIONS=--use-system-ca tsx watch server/index.ts",
     "seed": "cross-env NODE_OPTIONS=--use-system-ca tsx scripts/seed-users.ts",
     "build": "vite build",
+    "start": "cross-env NODE_ENV=production tsx server/index.ts",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit"

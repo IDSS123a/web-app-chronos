@@ -1,0 +1,31 @@
+# Render Blueprint (CD-006) — one Node service serves both the built Vite
+# frontend and the /api/* Express routes. Deploy via Render Dashboard →
+# "New +" → "Blueprint" → point at this repo. Render reads this file
+# automatically; see DEPLOYMENT.md for the full manual walkthrough.
+#
+# Secrets are intentionally NOT set here (sync: false) — Render will prompt
+# for each one in the dashboard instead of storing them in git.
+
+services:
+  - type: web
+    name: chronos-idss
+    runtime: node
+    plan: free
+    region: frankfurt
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: VITE_SUPABASE_URL
+        sync: false
+      - key: VITE_SUPABASE_ANON_KEY
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM_EMAIL
+        sync: false
