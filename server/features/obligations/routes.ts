@@ -4,11 +4,15 @@
  */
 
 import { Router } from 'express';
+import multer from 'multer';
 import { requireAuth } from '../../middleware/auth';
 import { HttpError } from '../../lib/errors';
+import { validateAttachmentFile } from '../../lib/storage';
 import { ObligationCreateSchema, ObligationUpdateSchema, type ObligationCreateInput, type ObligationUpdateInput } from './schemas';
 import * as repo from './repository';
 import * as domain from './domain';
+
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 export const obligationsRouter = Router();
 obligationsRouter.use(requireAuth);
@@ -138,5 +142,51 @@ obligationsRouter.patch('/:id/checklist/:itemIndex', async (req, res) => {
     res.json({ success: true, data: updated });
   } catch (err) {
     handleDomainError(err, res, 'Greška pri izmjeni kontrolne liste.');
+  }
+});
+
+/**
+ * POST /api/obligations/:id/attachment
+ * Role required: SUPER_ADMIN (any), STANDARD_USER (own obligations only)
+ * Body: multipart/form-data, field name "file" (PDF/DOC/DOCX/JPEG/PNG, max 10MB)
+ * Response: { success: true, data: Obligation }
+ * Errors: 401, 403, 404, 422 (bad file), 500
+ */
+obligationsRouter.post('/:id/attachment', upload.single('file'), async (req, res) => {
+  if (!req.file) {
+    res.status(422).json({ success: false, error: 'Fajl nije priložen.' });
+    return;
+  }
+
+  const validationError = validateAttachmentFile(req.file.mimetype, req.file.size);
+  if (validationError) {
+    res.status(422).json({ success: false, error: validationError });
+    return;
+  }
+
+  try {
+    const updated = await domain.setObligationAttachment(
+      req.params.id,
+      { originalname: req.file.originalname, buffer: req.file.buffer, mimetype: req.file.mimetype },
+      req.profile!
+    );
+    res.json({ success: true, data: updated });
+  } catch (err) {
+    handleDomainError(err, res, 'Greška pri otpremanju priloga.');
+  }
+});
+
+/**
+ * DELETE /api/obligations/:id/attachment
+ * Role required: SUPER_ADMIN (any), STANDARD_USER (own obligations only)
+ * Response: { success: true, data: Obligation }
+ * Errors: 401, 403, 404, 500
+ */
+obligationsRouter.delete('/:id/attachment', async (req, res) => {
+  try {
+    const updated = await domain.removeObligationAttachment(req.params.id, req.profile!);
+    res.json({ success: true, data: updated });
+  } catch (err) {
+    handleDomainError(err, res, 'Greška pri brisanju priloga.');
   }
 });

@@ -14,6 +14,7 @@
 
 import { HttpError } from '../../lib/errors';
 import { canDeleteObligation } from '../../lib/permissions';
+import { uploadAttachment, deleteAttachment } from '../../lib/storage';
 import * as repo from './repository';
 import * as auditRepo from '../audit-logs/repository';
 import type { AuthenticatedProfile } from '../../types';
@@ -109,7 +110,14 @@ export async function deleteObligationWithAudit(id: string, profile: Authenticat
   const target = await repo.getObligationById(id);
   if (!target) throw new HttpError(404, 'Obaveza nije pronađena.');
 
+  const rawAttachmentPath = await repo.getRawAttachmentPath(id);
   await repo.deleteObligation(id);
+
+  if (rawAttachmentPath) {
+    await deleteAttachment(rawAttachmentPath).catch((err) =>
+      console.error(`[deleteObligationWithAudit] failed to clean up attachment for ${id}:`, err)
+    );
+  }
 
   await auditRepo.createAuditLog({
     user_id: profile.id,
@@ -168,8 +176,6 @@ export async function toggleObligationStatus(
         priority: target.priority,
         status: 'NOVO',
         checklist_items: resetChecklist,
-        attachment_url: '',
-        attachment_name: '',
         is_recurring: target.is_recurring,
         recurring_interval: target.recurring_interval,
         created_by: target.created_by,
@@ -219,4 +225,64 @@ export async function toggleChecklistItem(
   );
 
   return repo.updateObligation(id, { checklist_items: updatedChecklist });
+}
+
+/** Uploads (or replaces) the attachment for an obligation. Ownership-gated
+ * the same way as any other edit (§5.1). Replacing deletes the old file. */
+export async function setObligationAttachment(
+  id: string,
+  file: { originalname: string; buffer: Buffer; mimetype: string },
+  profile: AuthenticatedProfile
+): Promise<Obligation> {
+  const target = await repo.getObligationById(id);
+  if (!target) throw new HttpError(404, 'Obaveza nije pronađena.');
+  requireEditable(profile, target);
+
+  const previousPath = await repo.getRawAttachmentPath(id);
+
+  const path = await uploadAttachment(id, file.originalname, file.buffer, file.mimetype);
+  const updated = await repo.setAttachment(id, path, file.originalname);
+
+  if (previousPath) {
+    await deleteAttachment(previousPath).catch((err) =>
+      console.error(`[setObligationAttachment] failed to clean up previous attachment for ${id}:`, err)
+    );
+  }
+
+  await auditRepo.createAuditLog({
+    user_id: profile.id,
+    username: profile.username,
+    action_type: 'IZMJENA',
+    target_table: 'Obligations',
+    target_id: id,
+    changes: `Priložen dokument "${file.originalname}" uz obavezu "${target.title}".`,
+  });
+
+  return updated;
+}
+
+export async function removeObligationAttachment(id: string, profile: AuthenticatedProfile): Promise<Obligation> {
+  const target = await repo.getObligationById(id);
+  if (!target) throw new HttpError(404, 'Obaveza nije pronađena.');
+  requireEditable(profile, target);
+
+  const previousPath = await repo.getRawAttachmentPath(id);
+  const updated = await repo.clearAttachment(id);
+
+  if (previousPath) {
+    await deleteAttachment(previousPath).catch((err) =>
+      console.error(`[removeObligationAttachment] failed to delete attachment for ${id}:`, err)
+    );
+  }
+
+  await auditRepo.createAuditLog({
+    user_id: profile.id,
+    username: profile.username,
+    action_type: 'IZMJENA',
+    target_table: 'Obligations',
+    target_id: id,
+    changes: `Uklonjen prilog sa obaveze "${target.title}".`,
+  });
+
+  return updated;
 }

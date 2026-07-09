@@ -17,6 +17,7 @@ import {
   toggleObligationStatus as toggleObligationStatusApi,
   toggleChecklistItem as toggleChecklistItemApi,
   clearAuditLogs as clearAuditLogsApi,
+  uploadObligationAttachment,
 } from './lib/api-client';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
@@ -188,17 +189,19 @@ export default function App() {
     }
   };
 
-  // 8. Create or Edit Obligation Save Handler (incorporates Mock Drive URL creation)
+  // 8. Create or Edit Obligation Save Handler. Attachment upload is a
+  // separate follow-up API call (Sprint 04) once the obligation id exists —
+  // transparent to the user since ObligationForm still submits everything
+  // from one form/button.
   const handleFormSubmit = async (data: Partial<Obligation>, attachmentFile?: File | null) => {
     if (!currentUser) return;
 
-    const attachmentUrl = attachmentFile ? `https://drive.google.com/open?id=${Date.now()}_drive_mock` : undefined;
-    const attachmentName = attachmentFile ? attachmentFile.name : undefined;
-
     try {
+      let saved: Obligation;
+
       if (selectedObligation) {
         // EDIT MODE
-        const updated = await updateObligationApi(selectedObligation.id, {
+        saved = await updateObligationApi(selectedObligation.id, {
           title: data.title,
           institution: data.institution,
           category: data.category,
@@ -209,14 +212,11 @@ export default function App() {
           is_recurring: data.is_recurring,
           recurring_interval: data.recurring_interval,
           watcher_ids: data.watcher_ids,
-          ...(attachmentUrl ? { attachment_url: attachmentUrl, attachment_name: attachmentName } : {}),
         });
-
-        setObligations((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
         setSelectedObligation(null);
       } else {
         // CREATE MODE
-        const created = await createObligationApi({
+        saved = await createObligationApi({
           title: data.title || '',
           institution: data.institution || 'IDSS',
           category: data.category || 'ADMINISTRACIJA',
@@ -224,15 +224,23 @@ export default function App() {
           responsible_person: data.responsible_person || '',
           priority: data.priority || 'SREDNJI',
           checklist_items: data.checklist_items || [],
-          attachment_url: attachmentUrl || '',
-          attachment_name: attachmentName || '',
           is_recurring: data.is_recurring || false,
           recurring_interval: data.recurring_interval || 'NONE',
           watcher_ids: data.watcher_ids || [],
         });
+      }
 
-        setObligations((prev) => [created, ...prev]);
-        triggerToast(`Obaveza "${created.title}" je uspješno kreirana.`, null);
+      if (attachmentFile) {
+        saved = await uploadObligationAttachment(saved.id, attachmentFile);
+      }
+
+      setObligations((prev) => {
+        const exists = prev.some((o) => o.id === saved.id);
+        return exists ? prev.map((o) => (o.id === saved.id ? saved : o)) : [saved, ...prev];
+      });
+
+      if (!selectedObligation) {
+        triggerToast(`Obaveza "${saved.title}" je uspješno kreirana.`, null);
       }
 
       const refreshedLogs = await fetchAuditLogs();

@@ -15,7 +15,7 @@
 | 01 | Backend & Database Foundation | Supabase projekat, šema, Express scaffold, real Auth | DONE |
 | 02 | Obligations API & Server-side Audit | CRUD kroz pravi backend, server-side audit log, RBAC enforcement | DONE |
 | 03 | Vidljivost obaveza (Watchers) | Kreator bira ko vidi obavezu; zaštita finansijski osjetljivih podataka; IDSS/IMH logotipi | DONE |
-| 04 | File Attachments | Supabase Storage upload/download, validacija | TODO |
+| 04 | File Attachments | Supabase Storage upload/download, validacija | DONE |
 | 05 | Recurring Engine & Real Time | Ukloniti hardkodovani "danas", server-side recurring logika | TODO |
 | 06 | Real Email Reminders | Resend integracija, `node-cron` 08:00 job | TODO |
 | 07 | Calendar, Print & UX Polish | Kalendar/print prema real API-ju, mobile provjera | TODO |

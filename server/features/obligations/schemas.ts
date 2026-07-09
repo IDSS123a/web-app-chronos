@@ -27,8 +27,6 @@ export const ObligationCreateSchema = z.object({
   responsible_person: z.string().trim().min(2, 'Morate navesti ime odgovorne osobe.'),
   priority: z.enum(['NIZAK', 'SREDNJI', 'VISOK']),
   checklist_items: z.array(ChecklistItemSchema).default([]),
-  attachment_url: z.string().default(''),
-  attachment_name: z.string().default(''),
   is_recurring: z.boolean().default(false),
   recurring_interval: z.enum(['NONE', 'MONTHLY', 'HALF_YEARLY', 'YEARLY']).default('NONE'),
   watcher_ids: z.array(z.string().uuid()).default([]),
@@ -36,6 +34,9 @@ export const ObligationCreateSchema = z.object({
 
 export const ObligationUpdateSchema = ObligationCreateSchema.partial();
 
+// NOTE: no attachment_url/attachment_name here — attachments are set via the
+// dedicated POST/DELETE /api/obligations/:id/attachment endpoints (Sprint 04),
+// not as part of the create/update JSON payload.
 export interface ObligationCreateInput {
   title: string;
   institution: InstitutionType;
@@ -44,8 +45,6 @@ export interface ObligationCreateInput {
   responsible_person: string;
   priority: PriorityType;
   checklist_items: ChecklistItem[];
-  attachment_url: string;
-  attachment_name: string;
   is_recurring: boolean;
   recurring_interval: RecurringInterval;
   watcher_ids: string[];

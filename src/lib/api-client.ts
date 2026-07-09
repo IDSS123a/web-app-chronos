@@ -24,7 +24,10 @@ async function authorizedFetch(url: string, options: RequestInit = {}): Promise<
 
   const headers = new Headers(options.headers);
   if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`);
-  if (options.body) headers.set('Content-Type', 'application/json');
+  // FormData sets its own multipart boundary — never override its Content-Type.
+  if (options.body && !(options.body instanceof FormData)) {
+    headers.set('Content-Type', 'application/json');
+  }
 
   return fetch(url, { ...options, headers });
 }
@@ -86,6 +89,8 @@ export async function fetchObligations(): Promise<Obligation[]> {
   return parseResponse<Obligation[]>(response);
 }
 
+// NOTE: no attachment_url/attachment_name — attachments are uploaded
+// separately via uploadObligationAttachment() once the obligation exists.
 export interface ObligationPayload {
   title: string;
   institution: Obligation['institution'];
@@ -94,8 +99,6 @@ export interface ObligationPayload {
   responsible_person: string;
   priority: Obligation['priority'];
   checklist_items: ChecklistItem[];
-  attachment_url: string;
-  attachment_name: string;
   is_recurring: boolean;
   recurring_interval: Obligation['recurring_interval'];
   watcher_ids: string[];
@@ -140,6 +143,22 @@ export async function toggleObligationStatus(id: string): Promise<ToggleStatusRe
 
 export async function toggleChecklistItem(id: string, itemIndex: number): Promise<Obligation> {
   const response = await authorizedFetch(`/api/obligations/${id}/checklist/${itemIndex}`, { method: 'PATCH' });
+  return parseResponse<Obligation>(response);
+}
+
+/** Uploads (or replaces) the attachment for an obligation. */
+export async function uploadObligationAttachment(id: string, file: File): Promise<Obligation> {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await authorizedFetch(`/api/obligations/${id}/attachment`, {
+    method: 'POST',
+    body: formData,
+  });
+  return parseResponse<Obligation>(response);
+}
+
+export async function deleteObligationAttachment(id: string): Promise<Obligation> {
+  const response = await authorizedFetch(`/api/obligations/${id}/attachment`, { method: 'DELETE' });
   return parseResponse<Obligation>(response);
 }
 

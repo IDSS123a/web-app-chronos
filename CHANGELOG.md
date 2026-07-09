@@ -21,3 +21,6 @@
 [2026-07-09] [SPRINT_03] Dodat watchers mehanizam (nova `obligation_watchers` tabela): kreator obaveze bira ko je smije vidjeti, van sebe i Super Admina. Default: privatno. Zamjenjuje raniju "svi vide sve" politiku iz Sprint 02.
 [2026-07-09] [SPRINT_03] Novi `GET /api/users` endpoint (id/ime/uloga) za watcher picker u formi.
 [2026-07-09] [SPRINT_03] Dodani zvanični IDSS i IMH logotipi na Login stranicu i sidebar (zamjena "C" placeholder monograma).
+[2026-07-09] [SPRINT_04] Stvarni upload/download priloga preko privatnog Supabase Storage bucket-a (obligation-attachments, 10MB limit, MIME whitelist). Zamjenjuje mock drive.google.com linkove.
+[2026-07-09] [SPRINT_04] Prilozi se čitaju preko kratkotrajnih (1h) signed URL-ova generisanih server-side — poštuju watchers vidljivost (§5.7), nikad javno dostupni.
+[2026-07-09] [SPRINT_04] Brisanje obaveze sada uklanja i pripadajući fajl iz Storage-a (nema orphaned fajlova).

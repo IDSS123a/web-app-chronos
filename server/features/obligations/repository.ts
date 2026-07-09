@@ -4,14 +4,14 @@
  */
 
 import { getSupabaseServerClient } from '../../lib/supabase-server';
+import { getSignedAttachmentUrl } from '../../lib/storage';
 import type { AuthenticatedProfile } from '../../types';
 import type { Obligation, ChecklistItem, ObligationStatus } from '../../../src/types';
 
 /**
- * DB row shape. Note: the `attachment_path` column (Supabase Storage path,
- * wired up in Sprint 04) is mapped to/from the frontend's `attachment_url`
- * field — until real uploads exist it just holds whatever string value is
- * given (currently a mock URL from ObligationForm).
+ * DB row shape. `attachment_path` is the Supabase Storage object path (never
+ * exposed to the client directly) — callers get a short-lived signed URL via
+ * `attachment_url` instead (see `toObligation` below).
  */
 interface ObligationRow {
   id: string;
@@ -32,7 +32,11 @@ interface ObligationRow {
   updated_at: string;
 }
 
-function mapRow(row: ObligationRow, watcherIds: string[]): Obligation {
+/** Maps a DB row (+ watcher ids) to the public Obligation shape, resolving
+ * `attachment_path` to a fresh signed URL if a file is attached. */
+async function toObligation(row: ObligationRow, watcherIds: string[]): Promise<Obligation> {
+  const attachmentUrl = row.attachment_path ? await getSignedAttachmentUrl(row.attachment_path) : null;
+
   return {
     id: row.id,
     title: row.title,
@@ -43,7 +47,7 @@ function mapRow(row: ObligationRow, watcherIds: string[]): Obligation {
     priority: row.priority as Obligation['priority'],
     status: row.status as Obligation['status'],
     checklist_items: row.checklist_items,
-    attachment_url: row.attachment_path ?? '',
+    attachment_url: attachmentUrl ?? '',
     attachment_name: row.attachment_name ?? '',
     is_recurring: row.is_recurring,
     recurring_interval: row.recurring_interval as Obligation['recurring_interval'],
@@ -52,6 +56,10 @@ function mapRow(row: ObligationRow, watcherIds: string[]): Obligation {
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
+}
+
+async function toObligations(rows: ObligationRow[], watcherMap: Map<string, string[]>): Promise<Obligation[]> {
+  return Promise.all(rows.map((row) => toObligation(row, watcherMap.get(row.id) ?? [])));
 }
 
 async function getWatcherIdsByObligation(obligationIds: string[]): Promise<Map<string, string[]>> {
@@ -77,7 +85,7 @@ async function getWatcherIdsByObligation(obligationIds: string[]): Promise<Map<s
 /**
  * Obligations visible to `profile`: SUPER_ADMIN sees everything; everyone
  * else sees what they created plus what they've been explicitly added to
- * watch (CONSTITUTION.md §5.1 — financial-data confidentiality).
+ * watch (CONSTITUTION.md §5.7 — financial-data confidentiality).
  */
 export async function getVisibleObligations(profile: AuthenticatedProfile): Promise<Obligation[]> {
   const supabase = getSupabaseServerClient();
@@ -87,7 +95,7 @@ export async function getVisibleObligations(profile: AuthenticatedProfile): Prom
     if (error) throw new Error(`getVisibleObligations failed: ${error.message}`);
     const rows = data as ObligationRow[];
     const watcherMap = await getWatcherIdsByObligation(rows.map((r) => r.id));
-    return rows.map((row) => mapRow(row, watcherMap.get(row.id) ?? []));
+    return toObligations(rows, watcherMap);
   }
 
   const { data: watchedRows, error: watchedError } = await supabase
@@ -109,7 +117,7 @@ export async function getVisibleObligations(profile: AuthenticatedProfile): Prom
 
   const rows = data as ObligationRow[];
   const watcherMap = await getWatcherIdsByObligation(rows.map((r) => r.id));
-  return rows.map((row) => mapRow(row, watcherMap.get(row.id) ?? []));
+  return toObligations(rows, watcherMap);
 }
 
 export async function getObligationById(id: string): Promise<Obligation | null> {
@@ -120,7 +128,21 @@ export async function getObligationById(id: string): Promise<Obligation | null> 
   if (!data) return null;
 
   const watcherMap = await getWatcherIdsByObligation([data.id]);
-  return mapRow(data as ObligationRow, watcherMap.get(data.id) ?? []);
+  return toObligation(data as ObligationRow, watcherMap.get(data.id) ?? []);
+}
+
+/** Raw (unsigned) storage path for an obligation's attachment, if any — used
+ * internally to delete/replace the old file. Never sent to the client. */
+export async function getRawAttachmentPath(id: string): Promise<string | null> {
+  const supabase = getSupabaseServerClient();
+  const { data, error } = await supabase
+    .from('obligations')
+    .select('attachment_path')
+    .eq('id', id)
+    .maybeSingle();
+
+  if (error) throw new Error(`getRawAttachmentPath failed: ${error.message}`);
+  return data?.attachment_path ?? null;
 }
 
 /** Replaces the full watcher list for an obligation (small lists — delete + reinsert is simplest and correct). */
@@ -150,16 +172,16 @@ export interface ObligationInsertInput {
   priority: Obligation['priority'];
   status: ObligationStatus;
   checklist_items: ChecklistItem[];
-  attachment_url: string;
-  attachment_name: string;
   is_recurring: boolean;
   recurring_interval: Obligation['recurring_interval'];
   created_by: string;
   watcher_ids: string[];
 }
 
-/** Insert a new obligation row. Used both for user-created obligations and
- * for the next cycle of a completed recurring obligation. */
+/** Insert a new obligation row (never with an attachment — files are added
+ * via the dedicated upload endpoint once the obligation exists). Used both
+ * for user-created obligations and for the next cycle of a completed
+ * recurring obligation. */
 export async function insertObligation(input: ObligationInsertInput): Promise<Obligation> {
   const supabase = getSupabaseServerClient();
   const { data, error } = await supabase
@@ -173,8 +195,6 @@ export async function insertObligation(input: ObligationInsertInput): Promise<Ob
       priority: input.priority,
       status: input.status,
       checklist_items: input.checklist_items,
-      attachment_path: input.attachment_url || null,
-      attachment_name: input.attachment_name || null,
       is_recurring: input.is_recurring,
       recurring_interval: input.recurring_interval,
       created_by: input.created_by,
@@ -186,7 +206,7 @@ export async function insertObligation(input: ObligationInsertInput): Promise<Ob
 
   await setObligationWatchers(data.id, input.watcher_ids);
 
-  return mapRow(data as ObligationRow, input.watcher_ids);
+  return toObligation(data as ObligationRow, input.watcher_ids);
 }
 
 export interface ObligationUpdatePatch {
@@ -198,24 +218,16 @@ export interface ObligationUpdatePatch {
   priority?: Obligation['priority'];
   status?: ObligationStatus;
   checklist_items?: ChecklistItem[];
-  attachment_url?: string;
-  attachment_name?: string;
   is_recurring?: boolean;
   recurring_interval?: Obligation['recurring_interval'];
 }
 
 export async function updateObligation(id: string, patch: ObligationUpdatePatch): Promise<Obligation> {
   const supabase = getSupabaseServerClient();
-  const dbPatch: Record<string, unknown> = { ...patch };
-
-  if ('attachment_url' in patch) {
-    dbPatch.attachment_path = patch.attachment_url;
-    delete dbPatch.attachment_url;
-  }
 
   const { data, error } = await supabase
     .from('obligations')
-    .update(dbPatch)
+    .update(patch)
     .eq('id', id)
     .select('*')
     .single();
@@ -223,7 +235,39 @@ export async function updateObligation(id: string, patch: ObligationUpdatePatch)
   if (error) throw new Error(`updateObligation failed: ${error.message}`);
 
   const watcherMap = await getWatcherIdsByObligation([id]);
-  return mapRow(data as ObligationRow, watcherMap.get(id) ?? []);
+  return toObligation(data as ObligationRow, watcherMap.get(id) ?? []);
+}
+
+/** Sets (or replaces) the stored attachment path/name for an obligation. */
+export async function setAttachment(id: string, path: string, name: string): Promise<Obligation> {
+  const supabase = getSupabaseServerClient();
+  const { data, error } = await supabase
+    .from('obligations')
+    .update({ attachment_path: path, attachment_name: name })
+    .eq('id', id)
+    .select('*')
+    .single();
+
+  if (error) throw new Error(`setAttachment failed: ${error.message}`);
+
+  const watcherMap = await getWatcherIdsByObligation([id]);
+  return toObligation(data as ObligationRow, watcherMap.get(id) ?? []);
+}
+
+/** Clears the attachment fields (does not touch Storage — caller deletes the object separately). */
+export async function clearAttachment(id: string): Promise<Obligation> {
+  const supabase = getSupabaseServerClient();
+  const { data, error } = await supabase
+    .from('obligations')
+    .update({ attachment_path: null, attachment_name: null })
+    .eq('id', id)
+    .select('*')
+    .single();
+
+  if (error) throw new Error(`clearAttachment failed: ${error.message}`);
+
+  const watcherMap = await getWatcherIdsByObligation([id]);
+  return toObligation(data as ObligationRow, watcherMap.get(id) ?? []);
 }
 
 export async function deleteObligation(id: string): Promise<void> {

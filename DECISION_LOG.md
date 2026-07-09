@@ -95,4 +95,13 @@ prirodno podržava `node-cron` (vidi CD-004).
 
 ---
 
+## CD-007 — File upload parsing: `multer`
+
+**Datum:** 2026-07-09
+**Odluka:** Koristiti `multer` middleware za parsiranje multipart/form-data upload zahtjeva na Express backend-u.
+**Razlog:** Express nema ugrađenu podršku za multipart parsing (Commander M-12 stepenica 3: "genuinely impossible without a new library"). `multer` je de-facto standard za Express, malog footprinta, održavan.
+**Napomena:** Fajlovi se drže u memoriji (`multer.memoryStorage()`) i odmah streamuju u Supabase Storage — nema privremenih fajlova na disku Express servera.
+
+---
+
 *Chronos v1.0 — IDSS123a Organisation*
