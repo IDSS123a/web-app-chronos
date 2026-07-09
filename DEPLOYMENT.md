@@ -93,20 +93,25 @@ Do tada, sistem radi ispravno, ali stvarno slanje uspijeva samo ka
 `idsssarajevo@gmail.com` (vlasnik Resend naloga) — svi ostali primaoci
 dobijaju grešku koja se ispravno bilježi u AuditLogs.
 
-## Korak 6 — Uključi zaštitu od kompromitovanih lozinki (Supabase)
+## Korak 6 — Zaštita od kompromitovanih lozinki (Supabase) — NIJE dostupno na trenutnom planu
 
-Sigurnosni pregled (Sprint 08) je pronašao da ova opcija nije uključena.
-Ovo je jedan klik u Supabase dashboard-u:
+Sigurnosni pregled (Sprint 08) je pronašao da ova opcija nije uključena, ali
+pokušaj uključivanja vraća grešku:
 
-1. Otvori Supabase projekat `web-app-chronos`.
-2. Idi na **Authentication** → **Policies** (ili **Providers** → **Email**,
-   zavisno od verzije dashboard-a) i pronađi "Leaked password protection" /
-   "Prevent use of leaked passwords".
-3. Uključi tu opciju.
+> Failed to update auth configuration: Configuring leaked password
+> protection via HaveIBeenPwned.org is available on Pro Plans and up.
 
-Ovo sprječava da bilo koji korisnik postavi lozinku koja je poznata iz
-javno procurjelih baza (provjerava se preko HaveIBeenPwned.org, bez slanja
-stvarne lozinke).
+Ovo je ograničenje Supabase **besplatnog** plana — funkcija postoji tek na
+plaćenom "Pro" planu (trenutno od $25/mjesec). **Ovo nije blokada za
+pokretanje Chronos-a** — samo znači da Supabase neće dodatno provjeravati
+da li korisnik bira lozinku koja je poznata iz javno procurjelih baza.
+Osnovna Auth sigurnost (hashovane lozinke, JWT sesije, RBAC) radi
+normalno i bez ovoga.
+
+Ako institucija kasnije odluči da nadogradi Supabase na Pro plan (zbog ove
+ili neke druge Pro funkcije), toggle je isti kao gore: **Authentication**
+→ **Policies**/**Providers** → "Leaked password protection". Do tada,
+ostaje otvorena backlog stavka — ne treba ništa raditi.
 
 ---
 
@@ -116,8 +121,9 @@ stvarne lozinke).
   asistent nikad ne unosi lozinke/API ključeve niti kreira naloge u tvoje ime.
 - DNS zapisi za Resend domenu — zahtijeva pristup registraru domene koji
   asistent nema (i ne bi smio imati).
-- Leaked-password-protection toggle — Supabase Auth podešavanje dostupno
-  samo kroz dashboard, van dometa dostupnih alata u ovoj sesiji.
+- Leaked-password-protection toggle — pokazalo se da ovo uopšte nije
+  dostupno na trenutnom (besplatnom) Supabase planu, van toga da je i
+  inače dashboard-only podešavanje, van dometa dostupnih alata.
 
 Sve ostalo (kod, konfiguracija, `render.yaml`, sigurnosni pregled baze) je
 već pripremljeno i testirano.

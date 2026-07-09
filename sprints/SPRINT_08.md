@@ -59,7 +59,11 @@ uraditi (kreiranje naloga, unos tajnih ključeva, DNS).
       neizmijenjen
 - [x] Supabase security/performance advisors pregledani i primijenjeni gdje
       je bezbjedno (migracija `sprint08_perf_hardening`); WARN o leaked
-      password protection dokumentovan kao ručni korak (nije code fix)
+      password protection dokumentovan kao ručni korak — korisnik potvrdio
+      da toggle u dashboard-u vraća grešku "available on Pro Plans and up"
+      (Supabase besplatni plan ne podržava ovu funkciju); `DEPLOYMENT.md`
+      ažuriran da to jasno navede kao opcionalnu buduću nadogradnju, ne
+      blokadu za pokretanje
 - [x] `render.yaml` referencira tačne env varijable koje app stvarno čita
       (provjereno grep-om — `GEMINI_API_KEY`/`APP_URL` namjerno izostavljeni
       jer ih kod trenutno ne koristi)
@@ -91,10 +95,13 @@ Render Blueprint), sigurnosni pregled baze sa primijenjenim bezbjednim
 ispravkama, potpun operativni vodič za korisnikove ručne korake.
 
 **Not completed (namjerno, korisnikova radnja):** Stvaran Render deploy
-(kreiranje naloga, unos ključeva), Resend domain DNS verifikacija,
-Supabase "leaked password protection" toggle — sve detaljno opisano u
+(kreiranje naloga, unos ključeva), Resend domain DNS verifikacija — vidi
 `DEPLOYMENT.md` sa objašnjenjem zašto asistent ne smije te korake uraditi
-umjesto korisnika.
+umjesto korisnika. Supabase "leaked password protection" toggle se
+ispostavio kao **nedostupan** na trenutnom besplatnom Supabase planu
+("available on Pro Plans and up") — korisnik je ovo potvrdio uživo;
+`DEPLOYMENT.md` ažuriran da ovo opiše kao opcionalnu buduću Pro-plan
+nadogradnju, ne kao korak koji treba odraditi sada.
 
 **Open risks:** Render besplatni tier "uspava" servis nakon neaktivnosti
 (prvi zahtjev nakon pauze 10-30s sporiji, a jutarnji 08:00 cron zahtijeva
