@@ -15,3 +15,7 @@ export function canDeleteObligation(role: UserRole): boolean {
 export function canClearAuditLogs(role: UserRole): boolean {
   return role === 'SUPER_ADMIN';
 }
+
+export function canRunReminderScan(role: UserRole): boolean {
+  return role === 'SUPER_ADMIN';
+}

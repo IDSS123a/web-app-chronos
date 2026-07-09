@@ -160,12 +160,26 @@ Svaka mutacija (kreiranje, izmjena, brisanje, završetak, undo, login/logout)
 piše zapis u `audit_logs` tabelu **na serveru**, ne na klijentu (trenutni
 prototip piše log client-side — ovo je bezbjednosni propust koji se ispravlja).
 
-### 5.5 Podsjetnici (reminder engine)
-Svakog dana u 08:00 (lokalno vrijeme Sarajeva), pozadinski `node-cron` job
-skenira nezavršene obaveze. Za svaku sa `due_date` tačno 3 dana unaprijed,
-šalje HTML email preko Resend-a odgovornoj osobi + direktoru + sekretaru.
-Administratorska ruta za ručno okidanje (testiranje) ostaje dostupna
-SUPER_ADMIN roli.
+### 5.5 Podsjetnici (reminder engine) — implementirano Sprint 06
+
+Svakog dana u 08:00 (Europe/Sarajevo), pozadinski `node-cron` job skenira
+nezavršene obaveze. Za svaku sa `due_date` tačno 3 dana unaprijed, šalje se
+stvaran HTML email preko Resend-a.
+
+**Primaoci (usklađeno sa §5.7 vidljivost pravilom, zamjenjuje raniju
+"direktor+sekretar" mock logiku):** svi SUPER_ADMIN nalozi + kreator obaveze
+(`created_by`) + svi watchers — dakle isti skup ljudi koji obavezu uopšte
+smiju vidjeti. Ovo je namjerno: ko ne smije vidjeti obavezu, ne treba ni
+dobijati email o njoj (posebno bitno za finansijski osjetljive obaveze).
+
+Administratorska ruta `POST /api/reminders/run` (ručno okidanje, isti scan
+kao cron) dostupna je isključivo SUPER_ADMIN roli — potvrđeno testom uživo.
+
+**Poznato ograničenje (Resend sandbox, nije bug u kodu):** dok se ne
+verificira sopstvena domena na resend.com/domains, Resend dozvoljava slanje
+samo na email vlasnika Resend naloga — svaki drugi primalac vraća grešku
+"You can only send testing emails to your own email address". Vidi
+DECISION_LOG CD-003.
 
 ### 5.6 Institucije
 Obaveza pripada `IDSS` ili `MONTESSORI`. Filter "obje" postoji samo na UI

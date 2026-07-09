@@ -26,3 +26,6 @@
 [2026-07-09] [SPRINT_04] Brisanje obaveze sada uklanja i pripadajući fajl iz Storage-a (nema orphaned fajlova).
 [2026-07-09] [SPRINT_05] Uklonjen hardkodovani "danas" (2026-07-02) kroz cijelu aplikaciju — nova src/lib/date-utils.ts, header sa živim satom, dinamički date preseti, kalendar otvara stvarni tekući mjesec.
 [2026-07-09] [SPRINT_05] Ispravljen bs-BA Intl locale bug (postojao od originalnog AI Studio koda) — toLocaleDateString('bs-BA', {weekday/month:'long'}) je vraćao pogrešan format u nekim browser okruženjima; zamijenjeno ručnim bosanskim formatiranjem.
+[2026-07-09] [SPRINT_06] Pravi email podsjetnici preko Resend-a: node-cron job 08:00 Europe/Sarajevo, ručni SUPER_ADMIN trigger, primaoci = kreator+watchers+SUPER_ADMIN (CD-008, zamjenjuje mock "direktor+sekretar").
+[2026-07-09] [SPRINT_06] Testirano uživo — scan/detekcija ispravno radi; stvarna dostava blokirana Resend sandbox ograničenjem (samo vlasnik naloga dok se ne verificira domena) — CD-003 ažuriran.
+[2026-07-09] [SPRINT_06] UX ispravka: "Školska godina" brzi filter sada ima strelice za navigaciju kroz školske godine (prije: samo tekuća, bez mogućnosti odabira naredne/prethodne).

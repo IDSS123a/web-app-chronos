@@ -10,6 +10,8 @@ import { authRouter } from './features/auth/routes';
 import { obligationsRouter } from './features/obligations/routes';
 import { auditLogsRouter } from './features/audit-logs/routes';
 import { usersRouter } from './features/users/routes';
+import { remindersRouter } from './features/reminders/routes';
+import { registerReminderCronJob } from './features/reminders/cron';
 
 const app = express();
 // Deliberately NOT named `PORT` — some dev/hosting environments export a
@@ -23,7 +25,10 @@ app.use('/api/auth', authRouter);
 app.use('/api/obligations', obligationsRouter);
 app.use('/api/audit-logs', auditLogsRouter);
 app.use('/api/users', usersRouter);
+app.use('/api/reminders', remindersRouter);
 
 app.listen(PORT, () => {
   console.log(`[chronos-server] Express API listening on http://localhost:${PORT}`);
 });
+
+registerReminderCronJob();

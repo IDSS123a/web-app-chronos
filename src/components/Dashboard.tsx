@@ -6,10 +6,10 @@
 import { Fragment, useState } from 'react';
 import { Obligation, CATEGORY_STYLE_MAP, PriorityType, ObligationStatus } from '../types';
 import { formatDateLocal, getTodayDateString, getCurrentSchoolYearRange, getBosnianMonthName } from '../lib/date-utils';
-import { 
-  Search, Plus, Printer, AlertTriangle, CheckCircle, 
-  Clock, CheckSquare, Eye, Edit, Trash2, Calendar, 
-  ArrowUpDown, Filter, ChevronDown, ChevronUp, FileText, ArrowRight, ShieldCheck
+import {
+  Search, Plus, Printer, AlertTriangle, CheckCircle,
+  Clock, CheckSquare, Eye, Edit, Trash2, Calendar,
+  ArrowUpDown, Filter, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, FileText, ArrowRight, ShieldCheck
 } from 'lucide-react';
 
 interface DashboardProps {
@@ -58,14 +58,26 @@ export default function Dashboard({
 
   const todayStr = getTodayDateString();
   const today = new Date(todayStr);
-  const schoolYear = getCurrentSchoolYearRange();
   const currentMonthPrefix = todayStr.slice(0, 7); // YYYY-MM
   const currentMonthNameCapitalized = getBosnianMonthName(today.getMonth(), true);
   const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
   const lastDayOfMonthLabel = `${formatDateLocal(lastDayOfMonth).split('-').reverse().join('.')}.`;
 
+  // "Školska godina" quick period is navigable — the current school year is
+  // just the default (offset 0), not the only option. Without this, a user
+  // couldn't filter to next year's obligations (e.g. September enrollment)
+  // while browsing earlier in the current school year.
+  const [schoolYearOffset, setSchoolYearOffset] = useState(0);
+  const currentSchoolYearStartYear = parseInt(getCurrentSchoolYearRange().startDate.slice(0, 4), 10);
+  const selectedSchoolYearStartYear = currentSchoolYearStartYear + schoolYearOffset;
+  const selectedSchoolYear = {
+    startDate: `${selectedSchoolYearStartYear}-09-01`,
+    endDate: `${selectedSchoolYearStartYear + 1}-08-31`,
+    label: `${selectedSchoolYearStartYear}/${selectedSchoolYearStartYear + 1}`,
+  };
+
   // Date Presets Handler
-  const applyPreset = (preset: 'WEEK' | 'MONTH' | 'SCHOOL_YEAR') => {
+  const applyPreset = (preset: 'WEEK' | 'MONTH' | 'SCHOOL_YEAR', schoolYearRange?: { startDate: string; endDate: string }) => {
     const now = new Date();
     if (preset === 'WEEK') {
       const dayOfWeek = now.getDay(); // 0 = Sun
@@ -82,8 +94,9 @@ export default function Dashboard({
       setStartDate(formatDateLocal(first));
       setEndDate(formatDateLocal(last));
     } else if (preset === 'SCHOOL_YEAR') {
-      setStartDate(schoolYear.startDate);
-      setEndDate(schoolYear.endDate);
+      const range = schoolYearRange ?? selectedSchoolYear;
+      setStartDate(range.startDate);
+      setEndDate(range.endDate);
     }
   };
 
@@ -407,12 +420,38 @@ export default function Dashboard({
           >
             Ovaj mjesec
           </button>
-          <button
-            onClick={() => applyPreset('SCHOOL_YEAR')}
-            className="px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 text-amber-800 text-xs font-bold rounded-xl transition-all cursor-pointer"
-          >
-            Školska godina {schoolYear.label}
-          </button>
+          <div className="inline-flex items-center bg-amber-500/10 border border-amber-500/20 rounded-xl overflow-hidden">
+            <button
+              onClick={() => {
+                const nextOffset = schoolYearOffset - 1;
+                setSchoolYearOffset(nextOffset);
+                const startYear = currentSchoolYearStartYear + nextOffset;
+                applyPreset('SCHOOL_YEAR', { startDate: `${startYear}-09-01`, endDate: `${startYear + 1}-08-31` });
+              }}
+              className="px-2 py-1.5 text-amber-800 hover:bg-amber-500/20 transition-all cursor-pointer"
+              title="Prethodna školska godina"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => applyPreset('SCHOOL_YEAR')}
+              className="px-2 py-1.5 text-amber-800 text-xs font-bold hover:bg-amber-500/20 transition-all cursor-pointer whitespace-nowrap"
+            >
+              Školska godina {selectedSchoolYear.label}
+            </button>
+            <button
+              onClick={() => {
+                const nextOffset = schoolYearOffset + 1;
+                setSchoolYearOffset(nextOffset);
+                const startYear = currentSchoolYearStartYear + nextOffset;
+                applyPreset('SCHOOL_YEAR', { startDate: `${startYear}-09-01`, endDate: `${startYear + 1}-08-31` });
+              }}
+              className="px-2 py-1.5 text-amber-800 hover:bg-amber-500/20 transition-all cursor-pointer"
+              title="Sljedeća školska godina"
+            >
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
 
       </div>

@@ -120,6 +120,22 @@ export async function getVisibleObligations(profile: AuthenticatedProfile): Prom
   return toObligations(rows, watcherMap);
 }
 
+/** Every non-completed obligation, system-wide — used by the reminder scan
+ * (server/features/reminders/domain.ts), which isn't scoped to any one user. */
+export async function getActiveObligationsForReminderScan(): Promise<Obligation[]> {
+  const supabase = getSupabaseServerClient();
+  const { data, error } = await supabase
+    .from('obligations')
+    .select('*')
+    .neq('status', 'ZAVRŠENO');
+
+  if (error) throw new Error(`getActiveObligationsForReminderScan failed: ${error.message}`);
+
+  const rows = data as ObligationRow[];
+  const watcherMap = await getWatcherIdsByObligation(rows.map((r) => r.id));
+  return toObligations(rows, watcherMap);
+}
+
 export async function getObligationById(id: string): Promise<Obligation | null> {
   const supabase = getSupabaseServerClient();
   const { data, error } = await supabase.from('obligations').select('*').eq('id', id).maybeSingle();

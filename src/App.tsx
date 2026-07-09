@@ -18,6 +18,8 @@ import {
   toggleChecklistItem as toggleChecklistItemApi,
   clearAuditLogs as clearAuditLogsApi,
   uploadObligationAttachment,
+  runReminderScan,
+  type ReminderScanResult,
 } from './lib/api-client';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
@@ -128,10 +130,11 @@ export default function App() {
   const [undoAction, setUndoAction] = useState<UndoAction | null>(null);
   const [undoToast, setUndoToast] = useState<{ visible: boolean; message: string; actionId: string; undoable: boolean } | null>(null);
 
-  // 6. Cron simulator modal popup
+  // 6. Reminder scan modal popup (Sprint 06 — real Resend send, not a client-side simulation)
   const [isCronSimulatorOpen, setIsCronSimulatorOpen] = useState(false);
-  const [cronLogs, setCronLogs] = useState<string[]>([]);
-  const [simulatedEmails, setSimulatedEmails] = useState<{ to: string; subject: string; body: string }[]>([]);
+  const [reminderScanState, setReminderScanState] = useState<
+    { status: 'RUNNING' } | { status: 'DONE'; result: ReminderScanResult } | { status: 'ERROR'; message: string } | null
+  >(null);
 
   // 7. Called by Login.tsx after a successful Supabase Auth sign-in
   const handleLogin = (user: User) => {
@@ -335,77 +338,25 @@ export default function App() {
     window.print();
   };
 
-  // 9. Morning Cron Simulator (Section 6.3 08:00 AM Engine Simulator)
-  // NOTE: this still only simulates the scan/log output client-side — real
-  // scheduled execution and real email delivery are Sprint 06, not this one.
-  // Sprint 05 replaced the hardcoded '2026-07-02' simulated date with the
-  // real current date.
-  const runCronSimulation = () => {
-    setCronLogs([]);
-    setSimulatedEmails([]);
+  // 9. Manual reminder scan trigger (SUPER_ADMIN only, mirrors CONSTITUTION.md
+  // §5.5) — Sprint 06 replaced the client-side "cron simulator" with a real
+  // call to the same scan the 08:00 Europe/Sarajevo node-cron job runs.
+  const runCronSimulation = async () => {
+    setReminderScanState({ status: 'RUNNING' });
     setIsCronSimulatorOpen(true);
 
-    const logsBuffer: string[] = [];
-    logsBuffer.push('08:00:00 AM - Pokrećem jutarnju Chronos provjeru...');
-    logsBuffer.push('08:00:01 AM - Čitam aktivne rokove iz registra (Obligations)...');
-
-    const activeObligations = obligations.filter((o) => o.status !== 'ZAVRŠENO');
-    logsBuffer.push(`08:00:02 AM - Pronađeno ${activeObligations.length} aktivnih/nezavršenih rokova.`);
-
-    const todayLocal = new Date(getTodayDateString());
-    const inThreeDays = new Date(todayLocal);
-    inThreeDays.setDate(inThreeDays.getDate() + 3);
-    const inThreeDaysLabel = formatDateLocal(inThreeDays).split('-').reverse().join('.') + '.';
-    const targetEmails: { to: string; subject: string; body: string }[] = [];
-
-    activeObligations.forEach((obl) => {
-      const oblDate = new Date(obl.due_date);
-      const diffTime = oblDate.getTime() - todayLocal.getTime();
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-      if (diffDays === 3) {
-        logsBuffer.push(`08:00:03 AM - [OKIDAČ PRONAĐEN] Rok "${obl.title}" ističe za 3 dana (${obl.due_date.split('-').reverse().join('.')})!`);
-
-        const emailBody = `
-          <div style="font-family: sans-serif; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px; max-width: 600px;">
-            <div style="background-color: #035EA1; padding: 15px; border-radius: 8px 8px 0 0; color: white;">
-              <h1 style="margin: 0; font-size: 18px; text-transform: uppercase;">[CHRONOS] Obaveštenje o roku dospijeća</h1>
-            </div>
-            <div style="padding: 20px; color: #1f2937;">
-              <p>Poštovani,</p>
-              <p>Ovo je automatski podsjetnik da administrativni rok za stavku dospijeva za tačno <strong>3 dana</strong>:</p>
-
-              <div style="background-color: #f8fafc; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #E30613;">
-                <p style="margin: 0 0 5px 0;"><strong>Obaveza:</strong> ${obl.title}</p>
-                <p style="margin: 0 0 5px 0;"><strong>Ustanova:</strong> ${obl.institution === 'IDSS' ? 'Internationale Deutsche Schule (IDSS)' : 'IMH Montessori House'}</p>
-                <p style="margin: 0 0 5px 0;"><strong>Rok dospijeća:</strong> ${obl.due_date.split('-').reverse().join('.')}</p>
-                <p style="margin: 0;"><strong>Odgovorna osoba:</strong> ${obl.responsible_person}</p>
-              </div>
-
-              <p>Molimo Vas da blagovremeno poduzmete akcije, ažurirate kontrolne stavke u aplikaciji Chronos i priložite relevantne dokumente.</p>
-              <p style="margin-top: 25px; font-size: 11px; color: #94a3b8;">Odgovori na ovaj e-mail biće proslijeđeni na: <a href="mailto:direktor@idss.ba">direktor@idss.ba</a></p>
-            </div>
-          </div>
-        `;
-
-        targetEmails.push({
-          to: 'direktor@idss.ba, sekretar@idss.ba',
-          subject: `[CHRONOS] Obaveza ističe za 3 dana: ${obl.title}`,
-          body: emailBody
-        });
-      }
-    });
-
-    if (targetEmails.length === 0) {
-      logsBuffer.push(`08:00:04 AM - Nema aktivnih obaveza koje ističu za tačno 3 dana od danas (${inThreeDaysLabel}).`);
-      logsBuffer.push('08:00:05 AM - Jutarnji podsjetnik završen bez slanja e-mailova.');
-    } else {
-      logsBuffer.push(`08:00:04 AM - Generisano ${targetEmails.length} podsjetnika. Šaljem HTTP POST zahtjev prema Google Apps Script Web App servisu...`);
-      logsBuffer.push('08:00:05 AM - [AUTORIZACIJA OK] GAS Web App API je uspješno poslao podsjetnike sa centralnog računa idsssarajevo@gmail.com.');
+    try {
+      const result = await runReminderScan();
+      setReminderScanState({ status: 'DONE', result });
+      const refreshedLogs = await fetchAuditLogs();
+      setAuditLogs(refreshedLogs);
+    } catch (err) {
+      console.error('[App] reminder scan failed:', err);
+      setReminderScanState({
+        status: 'ERROR',
+        message: err instanceof Error ? err.message : 'Greška pri pokretanju podsjetnika.',
+      });
     }
-
-    setCronLogs(logsBuffer);
-    setSimulatedEmails(targetEmails);
   };
 
   // While restoring an existing Supabase session, avoid flashing the Login screen
@@ -682,7 +633,7 @@ export default function App() {
               <div className="flex items-center gap-2">
                 <Clock className="w-5 h-5 text-amber-500" />
                 <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wider">
-                  Simulacija jutarnjeg servisa podsjetnika (08:00 AM Engine)
+                  Jutarnji servis podsjetnika (08:00 Europe/Sarajevo)
                 </h3>
               </div>
               <button
@@ -695,55 +646,52 @@ export default function App() {
 
             <div className="p-6 space-y-5 max-h-[70vh] overflow-y-auto">
 
-              {/* Simulator Info */}
               <div className="bg-slate-50 rounded-2xl p-4.5 border border-slate-200 text-xs space-y-1.5">
                 <p className="font-bold text-slate-800 uppercase tracking-wide">Kako radi slanje podsjetnika?</p>
                 <p className="text-slate-500 leading-relaxed">
-                  Svakog jutra u <strong>08:00 AM</strong>, pozadinski servis se pokreće i skenira sve nezavršene rokove. Za one koji ističu za <strong>tačno 3 dana</strong> (za simulaciju: dospijeće{' '}
-                  <strong>{(() => {
-                    const d = new Date(getTodayDateString());
-                    d.setDate(d.getDate() + 3);
-                    return formatDateLocal(d).split('-').reverse().join('.') + '.';
-                  })()}</strong>{' '}
-                  jer je danas {formatDateLocal(now).split('-').reverse().join('.')}.), generiše se HTML email i šalje preko centralnog računa <code className="bg-slate-200 px-1 rounded font-mono">idsssarajevo@gmail.com</code>.
+                  Svakog jutra u <strong>08:00</strong> (Europe/Sarajevo), pozadinski servis skenira sve nezavršene rokove i za one koji ističu za <strong>tačno 3 dana</strong> šalje stvarni email preko Resend-a kreatoru obaveze, watcher-ima i Super Adminu (CONSTITUTION.md §5.7). Ovo dugme ručno pokreće isti scan, odmah, radi testiranja.
                 </p>
               </div>
 
-              {/* Console Logs Simulator Output */}
-              <div className="space-y-1.5">
-                <h4 className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">
-                  Konzolni izlaz simulatora (Server Logs)
-                </h4>
-                <div className="bg-slate-950 text-emerald-400 font-mono text-[11px] p-4 rounded-2xl space-y-1 max-h-40 overflow-y-auto border border-slate-800">
-                  {cronLogs.map((log, i) => (
-                    <div key={i}>{log}</div>
-                  ))}
+              {reminderScanState?.status === 'RUNNING' && (
+                <div className="flex items-center justify-center py-10">
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Pokrećem scan i šaljem email(ove)...</span>
                 </div>
-              </div>
+              )}
 
-              {/* Simulated Email Previews HTML list */}
-              {simulatedEmails.length > 0 && (
+              {reminderScanState?.status === 'ERROR' && (
+                <div className="bg-red-50 border border-red-200 text-[#E30613] p-4 rounded-2xl text-xs font-semibold flex items-start gap-2.5">
+                  <AlertTriangle className="w-4.5 h-4.5 shrink-0 mt-0.5" />
+                  <span>{reminderScanState.message}</span>
+                </div>
+              )}
+
+              {reminderScanState?.status === 'DONE' && (
                 <div className="space-y-3">
-                  <h4 className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">
-                    Generisani HTML e-mailovi spremni za slanje ({simulatedEmails.length})
-                  </h4>
-                  <div className="space-y-4">
-                    {simulatedEmails.map((email, i) => (
-                      <div key={i} className="border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
-                        {/* Meta */}
-                        <div className="bg-slate-100 p-3.5 border-b border-slate-200 text-xs space-y-1 font-mono text-slate-600">
-                          <div><strong className="text-slate-700">Kome:</strong> {email.to}</div>
-                          <div><strong className="text-slate-700">Predmet:</strong> {email.subject}</div>
-                          <div><strong className="text-slate-700">Pošiljalac:</strong> Chronos - IDSS & IMH &lt;idsssarajevo@gmail.com&gt;</div>
-                        </div>
-                        {/* Body Rendered safely */}
-                        <div
-                          className="p-5 bg-white overflow-x-auto text-xs font-sans"
-                          dangerouslySetInnerHTML={{ __html: email.body }}
-                        />
-                      </div>
-                    ))}
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-center">
+                      <span className="block text-2xl font-mono font-bold text-slate-900">{reminderScanState.result.scannedCount}</span>
+                      <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest">Skenirano</span>
+                    </div>
+                    <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-center">
+                      <span className="block text-2xl font-mono font-bold text-amber-600">{reminderScanState.result.triggeredCount}</span>
+                      <span className="text-[9px] font-extrabold text-amber-600 uppercase tracking-widest">Dospijeva za 3 dana</span>
+                    </div>
+                    <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 text-center">
+                      <span className="block text-2xl font-mono font-bold text-emerald-600">{reminderScanState.result.emailsSent}</span>
+                      <span className="text-[9px] font-extrabold text-emerald-600 uppercase tracking-widest">Email(ova) poslano</span>
+                    </div>
                   </div>
+                  {reminderScanState.result.errors.length > 0 && (
+                    <div className="bg-red-50 border border-red-200 text-[#E30613] p-4 rounded-2xl text-xs space-y-1">
+                      <p className="font-bold uppercase tracking-wider">Greške pri slanju:</p>
+                      <ul className="list-disc list-inside">
+                        {reminderScanState.result.errors.map((e, i) => (
+                          <li key={i}>{e}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
               )}
 

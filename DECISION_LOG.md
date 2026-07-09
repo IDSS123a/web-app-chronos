@@ -51,6 +51,14 @@ za podsjetnike 3 dana prije roka.
 `onboarding@resend.dev` (Commander ACA_MANAGEMENT_GUIDE §10); za produkciju
 je potrebna verifikacija domene (npr. `chronos@idss.ba` ili slično) na
 resend.com/domains.
+**Potvrđeno testom uživo 2026-07-09 (Sprint 06):** dok se domena ne
+verificira, Resend sandbox nalog dozvoljava slanje isključivo na email
+vlasnika Resend naloga (u ovom slučaju `idsssarajevo@gmail.com`) — svaki
+drugi primalac (npr. `direktor@idss.ba`) vraća grešku "You can only send
+testing emails to your own email address". Ovo NIJE greška u Chronos kodu —
+kod je ispravno pozvao Resend API i ispravno obradio grešku. Institucionalni
+email primaoci (svi @idss.ba nalozi) neće stvarno primati podsjetnike dok se
+domena ne verificira.
 
 ---
 
@@ -101,6 +109,25 @@ prirodno podržava `node-cron` (vidi CD-004).
 **Odluka:** Koristiti `multer` middleware za parsiranje multipart/form-data upload zahtjeva na Express backend-u.
 **Razlog:** Express nema ugrađenu podršku za multipart parsing (Commander M-12 stepenica 3: "genuinely impossible without a new library"). `multer` je de-facto standard za Express, malog footprinta, održavan.
 **Napomena:** Fajlovi se drže u memoriji (`multer.memoryStorage()`) i odmah streamuju u Supabase Storage — nema privremenih fajlova na disku Express servera.
+
+---
+
+## CD-008 — Reminder email primaoci: kreator + watchers + SUPER_ADMIN (ne fiksni "direktor+sekretar")
+
+**Datum:** 2026-07-09
+**Odluka:** Email podsjetnik za obavezu koja dospijeva za 3 dana šalje se
+kreatoru obaveze, svim njenim watchers-ima i svim SUPER_ADMIN nalozima —
+umjesto originalne mock logike koja je uvijek slala na fiksan par
+`direktor@idss.ba, sekretar@idss.ba` bez obzira ko je obaveza.
+**Razlog:** Nakon Sprint 03 (vidljivost/watchers, CONSTITUTION.md §5.7), fiksni
+par primalaca više nema smisla — obaveza koju STANDARD_USER kreira i namjerno
+ne dijeli ni sa kim (npr. finansijski osjetljiva) i dalje bi slala email
+sekretaru koji je uopšte ne smije ni vidjeti u aplikaciji. Novo pravilo je
+koherentno sa vidljivost modelom: ko smije vidjeti obavezu, taj i dobija
+podsjetnik o njoj.
+**Upgrade path:** Ako se pokaže da neki watchers ne žele email (samo žele
+vidjeti u aplikaciji), razmotriti odvojenu "email preference" postavku po
+korisniku — nije zatraženo, ne implementirati unaprijed.
 
 ---
 

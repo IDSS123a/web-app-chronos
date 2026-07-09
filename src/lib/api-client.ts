@@ -171,3 +171,16 @@ export async function clearAuditLogs(): Promise<void> {
   const response = await authorizedFetch('/api/audit-logs', { method: 'DELETE' });
   await parseResponse<null>(response);
 }
+
+export interface ReminderScanResult {
+  scannedCount: number;
+  triggeredCount: number;
+  emailsSent: number;
+  errors: string[];
+}
+
+/** SUPER_ADMIN-only manual trigger for the daily reminder scan (Sprint 06). */
+export async function runReminderScan(): Promise<ReminderScanResult> {
+  const response = await authorizedFetch('/api/reminders/run', { method: 'POST' });
+  return parseResponse<ReminderScanResult>(response);
+}

@@ -17,7 +17,7 @@
 | 03 | Vidljivost obaveza (Watchers) | Kreator bira ko vidi obavezu; zaštita finansijski osjetljivih podataka; IDSS/IMH logotipi | DONE |
 | 04 | File Attachments | Supabase Storage upload/download, validacija | DONE |
 | 05 | Real Time | Ukloniti hardkodovani "danas", ispravka bs-BA Intl locale bug-a | DONE |
-| 06 | Real Email Reminders | Resend integracija, `node-cron` 08:00 job | TODO |
+| 06 | Real Email Reminders | Resend integracija, `node-cron` 08:00 job | DONE |
 | 07 | Calendar, Print & UX Polish | Kalendar/print prema real API-ju, mobile provjera | TODO |
 | 08 | Deployment | Render/hosting, env varijable, RLS hardening, Sentry | TODO |
 | 09+ | Backlog / Nice-to-have | Vidi ispod | TODO |
