@@ -18,3 +18,6 @@
 [2026-07-08] [SPRINT_02] Audit log se sada piše isključivo server-side pri svakoj mutaciji, uključujući login/logout (novi POST /api/audit-logs, ograničen na Users/IZMJENA da se spriječi zloupotreba).
 [2026-07-08] [SPRINT_02] Undo funkcionalnost pojednostavljena da poštuje novo RBAC pravilo: opoziv je moguć samo za završavanje/reaktivaciju obaveze (nema DELETE poziva za STANDARD_USER); kreiranje/brisanje ostaju bez opozivanja.
 [2026-07-08] [SPRINT_02] Uklonjen INITIAL_OBLIGATIONS demo seed — baza kreće prazna kao prava institucionalna baza.
+[2026-07-09] [SPRINT_03] Dodat watchers mehanizam (nova `obligation_watchers` tabela): kreator obaveze bira ko je smije vidjeti, van sebe i Super Admina. Default: privatno. Zamjenjuje raniju "svi vide sve" politiku iz Sprint 02.
+[2026-07-09] [SPRINT_03] Novi `GET /api/users` endpoint (id/ime/uloga) za watcher picker u formi.
+[2026-07-09] [SPRINT_03] Dodani zvanični IDSS i IMH logotipi na Login stranicu i sidebar (zamjena "C" placeholder monograma).

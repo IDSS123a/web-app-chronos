@@ -4,8 +4,9 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Obligation, ChecklistItem, PriorityType, RecurringInterval, InstitutionType, CATEGORY_STYLE_MAP } from '../types';
-import { X, Plus, Trash2, HelpCircle, FileText, UploadCloud, AlertTriangle } from 'lucide-react';
+import { Obligation, ChecklistItem, PriorityType, RecurringInterval, InstitutionType, UserSummary, CATEGORY_STYLE_MAP } from '../types';
+import { fetchUsers } from '../lib/api-client';
+import { X, Plus, Trash2, HelpCircle, FileText, UploadCloud, AlertTriangle, Eye } from 'lucide-react';
 
 interface ObligationFormProps {
   obligation?: Obligation | null; // If passed, we are in EDIT mode
@@ -29,7 +30,20 @@ export default function ObligationForm({ obligation, isOpen, onClose, onSubmit, 
   const [newChecklistItem, setNewChecklistItem] = useState('');
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurringInterval, setRecurringInterval] = useState<RecurringInterval>('NONE');
-  
+
+  // Visibility ("watchers") — CONSTITUTION.md §5.7. Only the creator (or
+  // SUPER_ADMIN editing) picks who besides themselves/Super Admin can see
+  // this obligation — important for financially-sensitive entries.
+  const [availableUsers, setAvailableUsers] = useState<UserSummary[]>([]);
+  const [watcherIds, setWatcherIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    fetchUsers()
+      .then(setAvailableUsers)
+      .catch((err) => console.error('[ObligationForm] failed to load user list:', err));
+  }, [isOpen]);
+
   // File upload state
   const [attachment, setAttachment] = useState<File | null>(null);
   const [existingAttachmentName, setExistingAttachmentName] = useState('');
@@ -53,6 +67,7 @@ export default function ObligationForm({ obligation, isOpen, onClose, onSubmit, 
       setExistingAttachmentName(obligation.attachment_name || '');
       setAttachment(null);
       setUploadError('');
+      setWatcherIds([...obligation.watcher_ids]);
     } else {
       // Set default date to today's date (July 2, 2026)
       setTitle('');
@@ -67,6 +82,7 @@ export default function ObligationForm({ obligation, isOpen, onClose, onSubmit, 
       setExistingAttachmentName('');
       setAttachment(null);
       setUploadError('');
+      setWatcherIds([]);
     }
     setErrors({});
   }, [obligation, isOpen]);
@@ -171,6 +187,7 @@ export default function ObligationForm({ obligation, isOpen, onClose, onSubmit, 
       checklist_items: checklist,
       is_recurring: isRecurring,
       recurring_interval: isRecurring ? recurringInterval : 'NONE',
+      watcher_ids: watcherIds,
     };
 
     if (isEditMode && obligation) {
@@ -350,6 +367,40 @@ export default function ObligationForm({ obligation, isOpen, onClose, onSubmit, 
             />
             {errors.responsible_person && (
               <span className="text-[#E30613] text-[10px] font-bold uppercase mt-1.5 block">{errors.responsible_person}</span>
+            )}
+          </div>
+
+          {/* Visibility / watchers (CONSTITUTION.md §5.7 — financial confidentiality) */}
+          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4.5 space-y-3">
+            <div className="flex items-center gap-1.5">
+              <Eye className="w-3.5 h-3.5 text-slate-500" />
+              <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Ko može vidjeti ovu obavezu</h4>
+            </div>
+            <p className="text-[10px] text-slate-400 leading-relaxed">
+              Vi i Super Admin uvijek vidite ovu obavezu. Označite kolege koje treba da je prate — finansijski osjetljive obaveze ostavite neoznačene.
+            </p>
+            {availableUsers.length === 0 ? (
+              <p className="text-[10px] text-slate-400 italic">Učitavanje liste korisnika...</p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto pr-1">
+                {availableUsers
+                  .filter((u) => u.role !== 'SUPER_ADMIN' && u.id !== currentUserId)
+                  .map((u) => (
+                    <label key={u.id} className="flex items-center gap-2 bg-white p-2 rounded-xl border border-slate-100 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={watcherIds.includes(u.id)}
+                        onChange={() => {
+                          setWatcherIds((prev) =>
+                            prev.includes(u.id) ? prev.filter((id) => id !== u.id) : [...prev, u.id]
+                          );
+                        }}
+                        className="rounded text-slate-900 focus:ring-slate-900 h-3.5 w-3.5"
+                      />
+                      <span className="text-xs font-medium text-slate-700">{u.fullName}</span>
+                    </label>
+                  ))}
+              </div>
             )}
           </div>
 

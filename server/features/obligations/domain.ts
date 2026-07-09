@@ -3,13 +3,13 @@
  * SPDX-License-Identifier: Apache-2.0
  *
  * FEATURE: Obligations business rules
- * PURPOSE: Ownership-based edit rules, audit logging, and the recurring
- *          cycle engine — moved 1:1 from the original client-side App.tsx
- *          (Commander M-11 Refactoring Boundary: same behaviour, better
- *          structure).
- * TOUCHES: obligations, audit_logs tables
- * SPRINT: 02
- * CONSTITUTION REF: §5.1 (RBAC), §5.2 (lifecycle), §5.3 (recurring engine), §5.4 (audit log)
+ * PURPOSE: Ownership-based edit rules, watcher-based visibility, audit
+ *          logging, and the recurring cycle engine — the mutation logic was
+ *          moved 1:1 from the original client-side App.tsx (Commander M-11
+ *          Refactoring Boundary: same behaviour, better structure).
+ * TOUCHES: obligations, obligation_watchers, audit_logs tables
+ * SPRINT: 02 (mutations), 03 (watcher visibility)
+ * CONSTITUTION REF: §5.1 (RBAC), §5.2 (lifecycle), §5.3 (recurring engine), §5.4 (audit log), §5.7 (visibility)
  */
 
 import { HttpError } from '../../lib/errors';
@@ -81,7 +81,13 @@ export async function updateObligationWithAudit(
   if (!target) throw new HttpError(404, 'Obaveza nije pronađena.');
   requireEditable(profile, target);
 
-  const updated = await repo.updateObligation(id, patch);
+  const { watcher_ids, ...columnPatch } = patch;
+  const updated = await repo.updateObligation(id, columnPatch);
+
+  if (watcher_ids !== undefined) {
+    await repo.setObligationWatchers(id, watcher_ids);
+    updated.watcher_ids = watcher_ids;
+  }
 
   await auditRepo.createAuditLog({
     user_id: profile.id,
@@ -167,6 +173,7 @@ export async function toggleObligationStatus(
         is_recurring: target.is_recurring,
         recurring_interval: target.recurring_interval,
         created_by: target.created_by,
+        watcher_ids: target.watcher_ids,
       });
 
       await auditRepo.createAuditLog({

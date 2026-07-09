@@ -31,6 +31,7 @@ export const ObligationCreateSchema = z.object({
   attachment_name: z.string().default(''),
   is_recurring: z.boolean().default(false),
   recurring_interval: z.enum(['NONE', 'MONTHLY', 'HALF_YEARLY', 'YEARLY']).default('NONE'),
+  watcher_ids: z.array(z.string().uuid()).default([]),
 });
 
 export const ObligationUpdateSchema = ObligationCreateSchema.partial();
@@ -47,6 +48,7 @@ export interface ObligationCreateInput {
   attachment_name: string;
   is_recurring: boolean;
   recurring_interval: RecurringInterval;
+  watcher_ids: string[];
 }
 
 export type ObligationUpdateInput = Partial<ObligationCreateInput>;

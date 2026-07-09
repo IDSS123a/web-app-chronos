@@ -37,8 +37,15 @@ export interface Obligation {
   is_recurring: boolean;
   recurring_interval: RecurringInterval;
   created_by: string; // User ID
+  watcher_ids: string[]; // Users (besides created_by/SUPER_ADMIN) who may see this obligation
   created_at: string; // ISO String
   updated_at: string; // ISO String
+}
+
+export interface UserSummary {
+  id: string;
+  fullName: string;
+  role: UserRole;
 }
 
 export interface AuditLog {

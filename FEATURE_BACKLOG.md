@@ -14,12 +14,19 @@
 |---|---|---|---|
 | 01 | Backend & Database Foundation | Supabase projekat, šema, Express scaffold, real Auth | DONE |
 | 02 | Obligations API & Server-side Audit | CRUD kroz pravi backend, server-side audit log, RBAC enforcement | DONE |
-| 03 | File Attachments | Supabase Storage upload/download, validacija | TODO |
-| 04 | Recurring Engine & Real Time | Ukloniti hardkodovani "danas", server-side recurring logika | TODO |
-| 05 | Real Email Reminders | Resend integracija, `node-cron` 08:00 job | TODO |
-| 06 | Calendar, Print & UX Polish | Kalendar/print prema real API-ju, mobile provjera | TODO |
-| 07 | Deployment | Render/hosting, env varijable, RLS hardening, Sentry | TODO |
-| 08+ | Backlog / Nice-to-have | Vidi ispod | TODO |
+| 03 | Vidljivost obaveza (Watchers) | Kreator bira ko vidi obavezu; zaštita finansijski osjetljivih podataka; IDSS/IMH logotipi | DONE |
+| 04 | File Attachments | Supabase Storage upload/download, validacija | TODO |
+| 05 | Recurring Engine & Real Time | Ukloniti hardkodovani "danas", server-side recurring logika | TODO |
+| 06 | Real Email Reminders | Resend integracija, `node-cron` 08:00 job | TODO |
+| 07 | Calendar, Print & UX Polish | Kalendar/print prema real API-ju, mobile provjera | TODO |
+| 08 | Deployment | Render/hosting, env varijable, RLS hardening, Sentry | TODO |
+| 09+ | Backlog / Nice-to-have | Vidi ispod | TODO |
+
+**Napomena o renumeraciji (2026-07-09):** Sprint 03 je originalno bio planiran
+kao "File Attachments", ali je zamijenjen hitnijim sigurnosnim zahtjevom
+(vidljivost finansijski osjetljivih obaveza) po Commander Decision Hierarchy
+(Security/Data Integrity > UI). File Attachments je pomjeren na Sprint 04, a
+svi naredni sprintovi pomjereni za jedno mjesto.
 
 Svaki sprint = jedan fokusiran razgovor sa ACA (Commander M-13). Detaljan
 opseg svakog sprinta piše se u `sprints/SPRINT_XX.md` neposredno prije
@@ -49,33 +56,42 @@ osnovu onoga što je stvarno završeno u prethodnom).
 - Frontend: `Dashboard`, `ObligationForm` prebačeni sa `localStorage` na `/api/obligations`
 - Undo toast ostaje, ali radi nad stvarnim API pozivima
 
-## SPRINT 03 — File Attachments
+## SPRINT 03 — Vidljivost obaveza (Watchers)
+
+- `obligation_watchers` tabela (many-to-many `obligation_id` ↔ `user_id`)
+- `server/features/obligations/repository.ts` — `getVisibleObligations()` filtrira po ulozi (SUPER_ADMIN=sve, STANDARD_USER=svoje+watcher)
+- `server/features/users` — novi `GET /api/users` endpoint (id/ime/uloga, za watcher picker)
+- `ObligationForm` — multi-select "Ko može vidjeti ovu obavezu" (default: prazno, samo kreator+admin)
+- Recurring ciklus nasljeđuje watchers listu originalne obaveze
+- IDSS i IMH logotipi dodani na Login stranicu i bočnu traku (zamjena "C" placeholder monograma)
+
+## SPRINT 04 — File Attachments
 
 - Supabase Storage bucket `obligation-attachments` + RLS
 - Upload endpoint sa MIME/veličina validacijom (server-side, ne samo client-side kao sada)
 - `ObligationForm` drag&drop povezan na stvarni upload
 - Uklanjanje mock `drive.google.com` linkova
 
-## SPRINT 04 — Real Time (uklanjanje hardkodovanog "danas")
+## SPRINT 05 — Real Time (uklanjanje hardkodovanog "danas")
 
 - Uklanjanje hardkodovanog `'2026-07-02'` kao "danas" kroz cijelu aplikaciju (Dashboard filteri/statistika, CalendarView, cron simulator)
 - Provjera vremenske zone (Europe/Sarajevo)
 - (Recurring cycle logika je već prenesena server-side u Sprint 02 — ovdje se samo uklanja ovisnost o fiksnom datumu)
 
-## SPRINT 05 — Real Email Reminders
+## SPRINT 06 — Real Email Reminders
 
 - Resend integracija (`server/lib/resend.ts`)
 - `node-cron` job u 08:00 (Europe/Sarajevo) koji poziva reminder domain logiku
 - HTML email template (zadržati postojeći dizajn iz `App.tsx` cron simulatora kao osnovu)
 - SUPER_ADMIN ruta za ručno okidanje (test) koja poziva istu logiku kao cron
 
-## SPRINT 06 — Calendar, Print & UX Polish
+## SPRINT 07 — Calendar, Print & UX Polish
 
 - `CalendarView` i `PrintTemplate` povezani na real API podatke
 - Provjera svih ekrana na mobilnom viewport-u (Commander FEATURE_LIFECYCLE Step 5)
 - Loading/empty/error stanja za sve async akcije (Commander DONE_CHECKLIST)
 
-## SPRINT 07 — Deployment
+## SPRINT 08 — Deployment
 
 - Render (ili odabrani host) deployment jednog Node servisa
 - `.env` production varijable, Resend domain verifikacija

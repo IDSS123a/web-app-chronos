@@ -7,7 +7,9 @@ import React, { useState } from 'react';
 import { User } from '../types';
 import { supabase } from '../lib/supabase-browser';
 import { fetchCurrentUser } from '../lib/api-client';
-import { Clock, ShieldAlert, LogIn, CheckCircle2 } from 'lucide-react';
+import { ShieldAlert, LogIn, CheckCircle2 } from 'lucide-react';
+import idssLogo from '../assets/logos/idss-logo.png';
+import imhLogo from '../assets/logos/imh-logo.png';
 
 interface LoginProps {
   onLoginSuccess: (user: User) => void;
@@ -60,8 +62,13 @@ export default function Login({ onLoginSuccess }: LoginProps) {
           
           {/* Logo / Brand Header */}
           <div className="text-center">
-            <div className="w-14 h-14 border-2 border-amber-500 rounded-2xl flex items-center justify-center font-bold text-amber-500 text-3xl font-mono mx-auto mb-4 tracking-tighter shadow-sm bg-amber-50/5">
-              C
+            <div className="flex items-center justify-center gap-3 mb-4">
+              <div className="bg-slate-900 rounded-xl px-4 py-2.5">
+                <img src={idssLogo} alt="Internationale Deutsche Schule Sarajevo" className="h-8 w-auto" />
+              </div>
+              <div className="bg-slate-900 rounded-xl px-4 py-2.5">
+                <img src={imhLogo} alt="International Montessori House Sarajevo" className="h-8 w-auto" />
+              </div>
             </div>
             <h1 className="text-xl font-extrabold text-slate-900 tracking-widest font-sans uppercase">
               CHRONOS

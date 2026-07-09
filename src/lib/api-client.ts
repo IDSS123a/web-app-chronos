@@ -6,7 +6,7 @@
  */
 
 import { supabase } from './supabase-browser';
-import type { User, Obligation, AuditLog, ChecklistItem } from '../types';
+import type { User, Obligation, AuditLog, ChecklistItem, UserSummary } from '../types';
 
 interface ApiSuccess<T> {
   success: true;
@@ -98,6 +98,13 @@ export interface ObligationPayload {
   attachment_name: string;
   is_recurring: boolean;
   recurring_interval: Obligation['recurring_interval'];
+  watcher_ids: string[];
+}
+
+/** Colleague roster for the "who can see this obligation" picker (CONSTITUTION.md §5.7). */
+export async function fetchUsers(): Promise<UserSummary[]> {
+  const response = await authorizedFetch('/api/users');
+  return parseResponse<UserSummary[]>(response);
 }
 
 export async function createObligation(payload: ObligationPayload): Promise<Obligation> {

@@ -28,6 +28,8 @@ import {
   Clock, LogOut, CheckSquare, History, Calendar as CalendarIcon,
   Menu, X, Shield, RefreshCw, AlertTriangle
 } from 'lucide-react';
+import idssLogo from './assets/logos/idss-logo.png';
+import imhLogo from './assets/logos/imh-logo.png';
 
 // Reverses the last "complete/reactivate" action via the same toggle-status
 // endpoint. Create/delete are intentionally not undoable here: STANDARD_USER
@@ -206,6 +208,7 @@ export default function App() {
           checklist_items: data.checklist_items,
           is_recurring: data.is_recurring,
           recurring_interval: data.recurring_interval,
+          watcher_ids: data.watcher_ids,
           ...(attachmentUrl ? { attachment_url: attachmentUrl, attachment_name: attachmentName } : {}),
         });
 
@@ -225,6 +228,7 @@ export default function App() {
           attachment_name: attachmentName || '',
           is_recurring: data.is_recurring || false,
           recurring_interval: data.recurring_interval || 'NONE',
+          watcher_ids: data.watcher_ids || [],
         });
 
         setObligations((prev) => [created, ...prev]);
@@ -405,8 +409,9 @@ export default function App() {
         {/* Sidebar Header Brand */}
         <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-950/40">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 border-2 border-amber-500 rounded-lg flex items-center justify-center font-extrabold text-amber-500 text-lg tracking-tighter shrink-0 font-mono">
-              C
+            <div className="flex flex-col gap-2 shrink-0">
+              <img src={idssLogo} alt="IDSS" className="h-6 w-auto" />
+              <img src={imhLogo} alt="IMH" className="h-6 w-auto" />
             </div>
             <div>
               <h1 className="text-sm font-black tracking-widest leading-none text-white font-sans uppercase">CHRONOS</h1>

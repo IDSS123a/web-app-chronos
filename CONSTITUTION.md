@@ -106,21 +106,22 @@ chronos/
 
 ## 5. DOMAIN — Poslovna pravila
 
-### 5.1 Uloge (RBAC) — potvrđeno 2026-07-08
+### 5.1 Uloge (RBAC) — potvrđeno 2026-07-08, vidljivost dopunjena 2026-07-09
 
 - `SUPER_ADMIN` (Davor Mulalić, direktor@idss.ba) — potpuna kontrola nad svim
-  procesima; potpun uvid u sve obaveze koje su unijeli svi korisnici; jedini
-  koji smije brisati obaveze i prazniti audit logove; smije uređivati bilo
-  čiji unos.
+  procesima; potpun uvid u **apsolutno sve** obaveze koje su unijeli svi
+  korisnici, bez izuzetka; jedini koji smije brisati obaveze i prazniti audit
+  logove; smije uređivati bilo čiji unos.
 - `STANDARD_USER` ("User" — 6 korisnika, vidi §5.1.1) — smije kreirati nove
   obaveze; smije uređivati i završavati **samo obaveze koje je sâm kreirao**
   (`obligation.created_by === currentUser.id`); ne smije brisati obaveze niti
-  prazniti audit logove; **vidi i pretražuje SVE obaveze** (i IDSS i IMH, i
-  tuđe), samo je uređivanje ograničeno na vlastite unose.
+  prazniti audit logove; **vidi samo obaveze koje je sâm kreirao ILI na kojima
+  je eksplicitno označen kao watcher** (vidi §5.7 — izmijenjeno pravilo,
+  zamjenjuje raniju verziju gdje su svi vidjeli sve).
 
 Institution filter (IDSS/IMH/Oboje) je isključivo UI filter za pregled —
-nikad kontrola pristupa. I SUPER_ADMIN i STANDARD_USER vide obaveze obje
-ustanove bez ograničenja.
+nikad kontrola pristupa vidljivosti. Vidljivost obaveze je isključivo
+kontrolisana kroz watchers mehanizam (§5.7), ne kroz instituciju.
 
 Enforced isključivo server-side u `server/lib/permissions.ts` (uključujući
 provjeru vlasništva `created_by` za izmjene STANDARD_USER korisnika — ovo se
@@ -170,6 +171,32 @@ SUPER_ADMIN roli.
 Obaveza pripada `IDSS` ili `MONTESSORI`. Filter "obje" postoji samo na UI
 nivou (agregacija), nikad kao vrijednost u bazi.
 
+### 5.7 Vidljivost obaveza / Watchers — dodano 2026-07-09
+
+Motivacija: obaveze finansijske prirode (i druge osjetljive) ne smiju biti
+vidljive svim korisnicima po defaultu.
+
+Pravilo:
+- Kreator obaveze (`created_by`) bira, u trenutku kreiranja ili izmjene, koje
+  kolege ("watchers") smiju vidjeti tu konkretnu obavezu, preko
+  `obligation_watchers` tabele (many-to-many, `obligation_id` ↔ `user_id`).
+- Default pri kreiranju: **prazna lista** (niko osim kreatora i SUPER_ADMIN-a)
+  — princip najmanje privilegije, posebno bitno za finansijske stavke.
+- `SUPER_ADMIN` uvijek vidi sve obaveze, neovisno o watchers listi.
+- Kreator uvijek vidi svoju obavezu, neovisno o tome da li je sebe dodao u
+  watchers (implicitno).
+- Watcher status daje **samo vidljivost** (read), ne i pravo izmjene — pravo
+  izmjene ostaje isključivo na `created_by === currentUser.id` (§5.1). Dakle
+  moguće je da neko vidi obavezu kao watcher, ali ne može je uređivati.
+- Kad se ponavljajuća obaveza završi i sistem kreira novi ciklus (§5.3), novi
+  ciklus nasljeđuje istu watchers listu kao originalna obaveza.
+- UI (`ObligationForm.tsx`) sakriva SUPER_ADMIN naloge iz watcher picker-a
+  (uvijek vide sve, nepotrebno ih birati) i samog kreatora (uvijek vidi svoje).
+
+Server-side enforced u `server/features/obligations/repository.ts`
+(`getVisibleObligations`) — frontend ne filtrira ništa samostalno, prima
+samo ono što server odluči da smije vidjeti.
+
 ## 6. PODACI (Data model — sažetak, detalji u migracijama)
 
 - `profiles` (prati `auth.users`): `id`, `full_name`, `role`, `institution`
@@ -177,10 +204,12 @@ nivou (agregacija), nikad kao vrijednost u bazi.
   `responsible_person`, `priority`, `status`, `checklist_items` (jsonb),
   `attachment_path`, `attachment_name`, `is_recurring`, `recurring_interval`,
   `created_by`, `created_at`, `updated_at`
+- `obligation_watchers`: `obligation_id`, `user_id` (composite PK) — vidi §5.7
 - `audit_logs`: `id`, `timestamp`, `user_id`, `username`, `action_type`,
   `target_table`, `target_id`, `changes`
 
-RLS uključen na svim tabelama. Detaljna šema definiše se u Sprint 01 migraciji.
+RLS uključen na svim tabelama. Detaljna šema definiše se u migracijama
+(`001_initial_schema.sql`, `005_obligation_watchers.sql`).
 
 ## 7. VANJSKE INTEGRACIJE
 

@@ -26,11 +26,12 @@ function handleDomainError(err: unknown, res: import('express').Response, fallba
  * GET /api/obligations
  * Role required: any authenticated user
  * Response: { success: true, data: Obligation[] }
- * Every role sees every obligation from both institutions (CONSTITUTION.md §5.1).
+ * SUPER_ADMIN sees everything; STANDARD_USER sees obligations they created
+ * plus ones they're an explicit watcher on (CONSTITUTION.md §5.7).
  */
-obligationsRouter.get('/', async (_req, res) => {
+obligationsRouter.get('/', async (req, res) => {
   try {
-    const obligations = await repo.getAllObligations();
+    const obligations = await repo.getVisibleObligations(req.profile!);
     res.json({ success: true, data: obligations });
   } catch (err) {
     handleDomainError(err, res, 'Greška pri učitavanju obaveza.');
