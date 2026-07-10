@@ -25,11 +25,12 @@ import Login from './components/Login';
 import Dashboard from './components/Dashboard';
 import CalendarView from './components/CalendarView';
 import AuditLogsView from './components/AuditLogsView';
+import NotificationsView from './components/NotificationsView';
 import ObligationForm from './components/ObligationForm';
 import PrintTemplate from './components/PrintTemplate';
 import {
   Clock, LogOut, CheckSquare, History, Calendar as CalendarIcon,
-  Menu, X, Shield, RefreshCw, AlertTriangle
+  Menu, X, Shield, RefreshCw, AlertTriangle, Bell
 } from 'lucide-react';
 import idssLogo from './assets/logos/idss-logo.png';
 import imhLogo from './assets/logos/imh-logo.png';
@@ -111,7 +112,7 @@ export default function App() {
   }, [currentUser]);
 
   // 4. View and UI States
-  const [currentView, setCurrentView] = useState<'DASHBOARD' | 'CALENDAR' | 'AUDIT_LOGS'>('DASHBOARD');
+  const [currentView, setCurrentView] = useState<'DASHBOARD' | 'CALENDAR' | 'AUDIT_LOGS' | 'NOTIFICATIONS'>('DASHBOARD');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedObligation, setSelectedObligation] = useState<Obligation | null>(null);
 
@@ -465,6 +466,23 @@ export default function App() {
               <History className={`w-4 h-4 ${currentView === 'AUDIT_LOGS' ? 'text-amber-500' : 'text-slate-500'}`} />
               AuditLogs (Dnevnik)
             </button>
+
+            {currentUser.role === 'SUPER_ADMIN' && (
+              <button
+                onClick={() => {
+                  setCurrentView('NOTIFICATIONS');
+                  setIsMobileMenuOpen(false);
+                }}
+                className={`w-full flex items-center gap-3 px-3 py-3 text-xs font-bold rounded-xl transition-all cursor-pointer border ${
+                  currentView === 'NOTIFICATIONS'
+                    ? 'bg-amber-500/10 text-amber-500 border-amber-500/30 font-extrabold shadow-sm'
+                    : 'text-slate-400 hover:text-slate-100 border-transparent hover:bg-slate-800/40'
+                }`}
+              >
+                <Bell className={`w-4 h-4 ${currentView === 'NOTIFICATIONS' ? 'text-amber-500' : 'text-slate-500'}`} />
+                Interne obavijesti
+              </button>
+            )}
           </nav>
 
           {/* Cron Simulation Section (Section 6.3 testing utility) */}
@@ -516,7 +534,8 @@ export default function App() {
           <div className="flex flex-col">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">
               {currentView === 'DASHBOARD' ? 'CHRONOS DASHBOARD' :
-               currentView === 'CALENDAR' ? 'CHRONOS KALENDAR' : 'CHRONOS AUDIT LOGS'}
+               currentView === 'CALENDAR' ? 'CHRONOS KALENDAR' :
+               currentView === 'NOTIFICATIONS' ? 'CHRONOS OBAVIJESTI' : 'CHRONOS AUDIT LOGS'}
             </span>
             <p className="text-lg font-light text-slate-600 mt-0.5">
               {formatDateBosnianLong(now)}
@@ -591,6 +610,10 @@ export default function App() {
               onClearLogs={handleClearAuditLogs}
               currentUserRole={currentUser.role}
             />
+          )}
+
+          {!dataLoading && !dataError && currentView === 'NOTIFICATIONS' && currentUser.role === 'SUPER_ADMIN' && (
+            <NotificationsView />
           )}
 
         </div>

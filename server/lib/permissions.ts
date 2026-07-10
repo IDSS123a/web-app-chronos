@@ -19,3 +19,9 @@ export function canClearAuditLogs(role: UserRole): boolean {
 export function canRunReminderScan(role: UserRole): boolean {
   return role === 'SUPER_ADMIN';
 }
+
+/** Interni notifikacioni sistem (Sprint 09) — upravljanje grupama/rasporedima
+ * i ručno slanje je SUPER_ADMIN-only u v1 (vidi CONSTITUTION.md §5.8). */
+export function canManageNotifications(role: UserRole): boolean {
+  return role === 'SUPER_ADMIN';
+}

@@ -53,7 +53,7 @@ export interface AuditLog {
   timestamp: string; // ISO String
   username: string;
   action_type: 'KREIRANJE' | 'IZMJENA' | 'BRISANJE' | 'ZAVRŠETAK' | 'UNDO';
-  target_table: 'Obligations' | 'Users';
+  target_table: 'Obligations' | 'Users' | 'Notifications';
   target_id: string;
   changes: string; // Describe what changed, or simple text
 }
@@ -65,6 +65,50 @@ export interface CategoryInfo {
   hex: string;
   borderClass: string;
   textClass: string;
+}
+
+// --- Interni notifikacioni sistem (Sprint 09) ---
+
+export interface NotificationGroup {
+  id: string;
+  name: string;
+  member_ids: string[];
+  member_names: string[]; // parallel array, for display without a second lookup
+  created_at: string;
+}
+
+export type ReportType = 'DNEVNI_PREGLED';
+
+export interface NotificationSchedule {
+  id: string;
+  name: string;
+  report_type: ReportType;
+  group_id: string;
+  group_name: string;
+  send_time: string; // 'HH:MM'
+  enabled: boolean;
+  last_run_date: string | null;
+  created_at: string;
+}
+
+export type NotificationStatus = 'SUCCESS' | 'PARTIAL' | 'FAILED';
+export type RecipientStatus = 'SENT' | 'FAILED';
+
+export interface NotificationLogRecipient {
+  email: string;
+  status: RecipientStatus;
+  error_message: string | null;
+}
+
+export interface NotificationLogEntry {
+  id: string;
+  sent_by_name: string | null; // null => sistem/cron
+  schedule_name: string | null; // null => ručno slanje
+  subject: string;
+  recipient_count: number;
+  status: NotificationStatus;
+  sent_at: string;
+  recipients: NotificationLogRecipient[];
 }
 
 export const CATEGORY_STYLE_MAP: Record<string, CategoryInfo> = {

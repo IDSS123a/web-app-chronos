@@ -165,4 +165,52 @@ trivijalan dodatak, ne zahtijeva arhitekturnu promjenu.
 
 ---
 
+## CD-010 — Interni notifikacioni sistem: Express + node-cron, ne Supabase Edge Function
+
+**Datum:** 2026-07-10
+**Odluka:** Interni notifikacioni sistem (grupe/rasporedi/ručno slanje,
+Sprint 09) implementiran u postojećem Express backend-u
+(`server/features/notifications/`), zakazano slanje preko `node-cron` tick-a
+svakih 15 min — isti obrazac kao CD-004 (reminder cron), ne novi Supabase
+Edge Function.
+**Razlog:** Detaljna analiza (Backend vs API Route vs Supabase Edge Function
+vs Cron Job vs Background Worker) prije implementacije — Edge Function bi
+uveo drugi deployment cilj, druge env varijable, drugi pipeline, direktno u
+suprotnosti sa CD-006 principom "jedan servis, jedan URL" za non-coder
+operatera. Deno edge runtime je i tehnički lošije uklopljen za bilo šta van
+kratkih HTTP zahtjeva. Background Worker (queue/Redis) bi bio prekomjeran
+za trenutni obim (7-20 korisnika, par slanja dnevno).
+**Upgrade path:** Ako obim naraste do tačke gdje Express event loop postane
+usko grlo (vidi CD-011 za razmatranje skalabilnosti transporta), Background
+Worker ostaje razumna sljedeća stepenica — ne implementirati unaprijed.
+
+---
+
+## CD-011 — Email transport za notifikacije: Resend (isti kao podsjetnici), ne cPanel SMTP
+
+**Datum:** 2026-07-10
+**Odluka:** Interni notifikacioni sistem koristi isti Resend transport kao
+postojeći reminder engine (§5.5), ne cPanel SMTP preko `direktor@idss.ba`
+mailbox-a (razmatrana alternativa).
+**Razlog:** Detaljna tehnička analiza (9 pitanja: uklanjanje Resend-a,
+cPanel SMTP kompatibilnost/sigurnost, mjesto implementacije, arhitektura
+zakazanih izvještaja, ručno slanje, audit log, sigurnost, skalabilnost,
+preporuka) je zaključila da je pravi problem (Resend sandbox ograničenje,
+CD-003) rješiv jednokratnom DNS verifikacijom domene, ne zamjenom cijelog
+transporta. cPanel SMTP nosi veći rizik (SMTP lozinka = puni pristup
+mailbox-u, nema delivery analitike, nepoznati rate limiti hostinga,
+neizvjesnost oko Render-ovog dozvoljavanja odlaznih SMTP portova) za istu
+funkcionalnu korist.
+**Izvršeno:** `idss.ba` Resend domena verifikovana 2026-07-10 (DKIM/SPF na
+izolovanoj poddomeni `send.idss.ba`, vidi memoriju
+`reference-idss123a-shared-resend-domain`) — sandbox ograničenje riješeno
+bez potrebe za alternativnim transportom.
+**Upgrade path:** Ako institucija ikad zatraži cPanel SMTP iz
+institucionalnih razloga (ne tehničkih), arhitektura je već pripremljena da
+to bude lokalizovana zamjena `server/lib/resend.ts` (ili ekvivalenta) —
+`sendEmail()` interfejs ostaje isti, poziva ga i reminder engine i
+notifikacioni sistem.
+
+---
+
 *Chronos v1.0 — IDSS123a Organisation*

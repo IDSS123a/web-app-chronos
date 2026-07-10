@@ -211,6 +211,43 @@ Server-side enforced u `server/features/obligations/repository.ts`
 (`getVisibleObligations`) — frontend ne filtrira ništa samostalno, prima
 samo ono što server odluči da smije vidjeti.
 
+### 5.8 Interni notifikacioni sistem — dodano 2026-07-10 (Sprint 09)
+
+Zaseban od §5.5 (podsjetnici o rokovima) — ovo je opšti komunikacijski
+kanal za instituciju (uprava, administracija, nastavnici), ne vezan za
+konkretnu obavezu.
+
+Pravilo:
+- **SUPER_ADMIN-only u v1** (`canManageNotifications`, jedini source of
+  truth u `server/lib/permissions.ts`) — upravljanje grupama/rasporedima i
+  ručno slanje. Nije vidljivo STANDARD_USER korisnicima ni u sidebar-u ni
+  server-side.
+- **Grupe primalaca** (`notification_groups` + `notification_group_members`,
+  many-to-many, isti obrazac kao `obligation_watchers` §5.7) — proizvoljni
+  skupovi korisnika, nezavisni od instituacije/uloge.
+- **Rasporedi** (`notification_schedules`) — jedan raspored = jedan tip
+  izvještaja + jedna grupa + vrijeme slanja + on/off. Novi raspored, novo
+  vrijeme ili nova grupa je **izmjena podataka**, ne koda. Novi TIP
+  izvještaja zahtijeva jednu novu funkciju u `REPORT_GENERATORS` registru
+  (`server/features/notifications/domain.ts`) — namjerno minimalna dodatna
+  arhitektura, ne generička plugin infrastruktura koja nije zatražena.
+- **Cron** (`server/features/notifications/cron.ts`) — tick svakih 15 min,
+  Europe/Sarajevo, zaseban od §5.5-ovog 08:00-only reminder cron-a jer
+  rasporedi mogu biti u bilo koje vrijeme. Self-healing preko
+  `last_run_date` (propušten tick se nadoknadi, bez duplog slanja istog dana).
+- **Ručno slanje** — SUPER_ADMIN piše naslov/poruku, bira grupe i/ili
+  pojedinačne korisnike, potvrđuje tačnu listu primalaca prije slanja.
+  Tvrda granica od 200 primalaca po slanju (zaštita od slučajnog masovnog
+  slanja).
+- **Evidencija** (`notification_log` + `notification_log_recipients`) —
+  ko/kome/kada/status/greška, po primaocu. Odvojeno od `audit_logs` (koji i
+  dalje dobija jednu sažetu liniju po akciji za institucionalnu
+  odgovornost), jer treba strukturiran uvid u pojedinačne primaoce koji
+  `audit_logs`-ov slobodan tekst ne pruža.
+- Sav slobodan tekst (naslov, poruka, naziv grupe/rasporeda) se HTML-escape-uje
+  prije ubacivanja u odlazni email (ista pouka kao §5.5 sigurnosni nalaz,
+  Sprint 08).
+
 ## 6. PODACI (Data model — sažetak, detalji u migracijama)
 
 - `profiles` (prati `auth.users`): `id`, `full_name`, `role`, `institution`
@@ -221,9 +258,16 @@ samo ono što server odluči da smije vidjeti.
 - `obligation_watchers`: `obligation_id`, `user_id` (composite PK) — vidi §5.7
 - `audit_logs`: `id`, `timestamp`, `user_id`, `username`, `action_type`,
   `target_table`, `target_id`, `changes`
+- `notification_groups` / `notification_group_members`: proizvoljne grupe
+  primalaca (§5.8)
+- `notification_schedules`: zakazani izvještaji — grupa, vrijeme, tip,
+  on/off (§5.8)
+- `notification_log` / `notification_log_recipients`: evidencija slanja,
+  po primaocu (§5.8)
 
 RLS uključen na svim tabelama. Detaljna šema definiše se u migracijama
-(`001_initial_schema.sql`, `005_obligation_watchers.sql`).
+(`001_initial_schema.sql`, `005_obligation_watchers.sql`,
+`007_notification_system.sql`).
 
 ## 7. VANJSKE INTEGRACIJE
 

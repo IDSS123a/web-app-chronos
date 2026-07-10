@@ -6,7 +6,7 @@
  */
 
 import { supabase } from './supabase-browser';
-import type { User, Obligation, AuditLog, ChecklistItem, UserSummary } from '../types';
+import type { User, Obligation, AuditLog, ChecklistItem, UserSummary, NotificationGroup, NotificationSchedule, NotificationLogEntry } from '../types';
 
 interface ApiSuccess<T> {
   success: true;
@@ -183,4 +183,81 @@ export interface ReminderScanResult {
 export async function runReminderScan(): Promise<ReminderScanResult> {
   const response = await authorizedFetch('/api/reminders/run', { method: 'POST' });
   return parseResponse<ReminderScanResult>(response);
+}
+
+// --- Interni notifikacioni sistem (Sprint 09) — sve rute SUPER_ADMIN-only ---
+
+export interface NotificationGroupPayload {
+  name: string;
+  member_ids: string[];
+}
+
+export async function fetchNotificationGroups(): Promise<NotificationGroup[]> {
+  const response = await authorizedFetch('/api/notifications/groups');
+  return parseResponse<NotificationGroup[]>(response);
+}
+
+export async function createNotificationGroup(payload: NotificationGroupPayload): Promise<NotificationGroup> {
+  const response = await authorizedFetch('/api/notifications/groups', { method: 'POST', body: JSON.stringify(payload) });
+  return parseResponse<NotificationGroup>(response);
+}
+
+export async function updateNotificationGroup(id: string, payload: Partial<NotificationGroupPayload>): Promise<NotificationGroup> {
+  const response = await authorizedFetch(`/api/notifications/groups/${id}`, { method: 'PATCH', body: JSON.stringify(payload) });
+  return parseResponse<NotificationGroup>(response);
+}
+
+export async function deleteNotificationGroup(id: string): Promise<void> {
+  const response = await authorizedFetch(`/api/notifications/groups/${id}`, { method: 'DELETE' });
+  await parseResponse<null>(response);
+}
+
+export interface NotificationSchedulePayload {
+  name: string;
+  report_type: 'DNEVNI_PREGLED';
+  group_id: string;
+  send_time: string;
+  enabled: boolean;
+}
+
+export async function fetchNotificationSchedules(): Promise<NotificationSchedule[]> {
+  const response = await authorizedFetch('/api/notifications/schedules');
+  return parseResponse<NotificationSchedule[]>(response);
+}
+
+export async function createNotificationSchedule(payload: NotificationSchedulePayload): Promise<NotificationSchedule> {
+  const response = await authorizedFetch('/api/notifications/schedules', { method: 'POST', body: JSON.stringify(payload) });
+  return parseResponse<NotificationSchedule>(response);
+}
+
+export async function updateNotificationSchedule(id: string, payload: Partial<NotificationSchedulePayload>): Promise<NotificationSchedule> {
+  const response = await authorizedFetch(`/api/notifications/schedules/${id}`, { method: 'PATCH', body: JSON.stringify(payload) });
+  return parseResponse<NotificationSchedule>(response);
+}
+
+export async function deleteNotificationSchedule(id: string): Promise<void> {
+  const response = await authorizedFetch(`/api/notifications/schedules/${id}`, { method: 'DELETE' });
+  await parseResponse<null>(response);
+}
+
+export interface ManualSendPayload {
+  subject: string;
+  body: string;
+  group_ids: string[];
+  user_ids: string[];
+}
+
+export interface ManualSendResult {
+  recipientCount: number;
+  status: 'SUCCESS' | 'PARTIAL' | 'FAILED';
+}
+
+export async function sendManualNotification(payload: ManualSendPayload): Promise<ManualSendResult> {
+  const response = await authorizedFetch('/api/notifications/send', { method: 'POST', body: JSON.stringify(payload) });
+  return parseResponse<ManualSendResult>(response);
+}
+
+export async function fetchNotificationLog(): Promise<NotificationLogEntry[]> {
+  const response = await authorizedFetch('/api/notifications/log');
+  return parseResponse<NotificationLogEntry[]>(response);
 }

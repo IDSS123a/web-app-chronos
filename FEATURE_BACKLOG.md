@@ -20,7 +20,8 @@
 | 06 | Real Email Reminders | Resend integracija, `node-cron` 08:00 job | DONE |
 | 07 | Calendar, Print & UX Polish | Kalendar/print prema real API-ju, mobile provjera | DONE |
 | 08 | Deployment | Render/hosting, env varijable, RLS hardening, Sentry | DONE |
-| 09+ | Backlog / Nice-to-have | Vidi ispod | TODO |
+| 09 | Interni notifikacioni sistem | Grupe primalaca, zakazani izvještaji, ručno slanje, evidencija | DONE |
+| 10+ | Backlog / Nice-to-have | Vidi ispod | TODO |
 
 **Napomena o renumeraciji (2026-07-09):** Sprint 03 je originalno bio planiran
 kao "File Attachments", ali je zamijenjen hitnijim sigurnosnim zahtjevom
@@ -110,6 +111,23 @@ osnovu onoga što je stvarno završeno u prethodnom).
 
 ---
 
+## SPRINT 09 — Interni notifikacioni sistem — DONE
+
+- 5 novih tabela: grupe primalaca, članstvo, rasporedi, evidencija slanja,
+  evidencija po primaocu (vidi CONSTITUTION.md §5.8)
+- Grupe primalaca (many-to-many, isti obrazac kao watchers §5.7)
+- Zakazani dnevni izvještaji preko `node-cron` (15 min tick, self-healing,
+  data-driven — novi raspored je izmjena podataka, ne koda)
+- Ručno slanje sa potvrdom prije slanja i tvrdom granicom od 200 primalaca
+- Evidencija po primaocu (odvojena od `audit_logs`)
+- SUPER_ADMIN-only u v1; koristi isti Resend transport kao podsjetnici
+  (CD-011 — cPanel SMTP razmotren i odbačen u korist dovršavanja Resend
+  domain verifikacije)
+- Testirano uživo end-to-end, uključujući stvarnu isporuku (Resend
+  `delivered`) i RBAC provjeru (STANDARD_USER blokiran na svih 5 ruta)
+
+---
+
 ## Backlog — van trenutnog opsega (ne implementirati bez eksplicitnog zahtjeva)
 
 - AI/Gemini funkcionalnosti (npr. pametno kreiranje obaveza iz prirodnog jezika, OCR priloga)
@@ -117,6 +135,9 @@ osnovu onoga što je stvarno završeno u prethodnom).
 - Višejezičnost (engleski/njemački pored bosanskog)
 - Push notifikacije / mobilna aplikacija
 - Izvještaji i napredna analitika
+- Personalizovan sadržaj zakazanih izvještaja po primaocu (Sprint 09 v1 je sistemski nivo)
+- Više grupa po jednom rasporedu (Sprint 09 v1: jedan raspored = jedna grupa)
+- Dozvola slanja notifikacija za STANDARD_USER korisnike (Sprint 09 v1: SUPER_ADMIN-only)
 
 ---
 
