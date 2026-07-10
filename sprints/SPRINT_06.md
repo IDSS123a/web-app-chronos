@@ -32,16 +32,18 @@ za obaveze koje dospijevaju za tačno 3 dana.
 - [x] `node-cron` job registrovan i vidljiv u server logovima pri pokretanju — **testirano uživo**: "Reminder cron job registered: 08:00 Europe/Sarajevo daily"
 - [ ] STANDARD_USER ne može pozvati `/api/reminders/run` (403) — kod identičan dokazanom `canDeleteObligation`/`canClearAuditLogs` obrascu, nije posebno re-testirano uživo ovaj put
 
-## Napomena — stvarna dostava emaila blokirana Resend sandbox ograničenjem
+## Napomena — stvarna dostava emaila blokirana Resend sandbox ograničenjem — RIJEŠENO 2026-07-10
 Ručni test je otkrio da Resend nalog (još) nema verificiranu domenu, pa
 dozvoljava slanje SAMO na email vlasnika naloga (`idsssarajevo@gmail.com`).
 Svaki drugi primalac (svi @idss.ba nalozi) vraća grešku "You can only send
 testing emails to your own email address". Ovo je Resend ograničenje, ne bug
 — kod je ispravno pozvao API, ispravno uhvatio grešku i ispravno je prikazao
-u UI-ju i audit logu. **Za stvarnu dostavu institucionalnim email adresama,
-potrebno je verificirati domenu na resend.com/domains** (vidi DECISION_LOG
-CD-003). Do tada, cron/ručni scan će uvijek raditi ispravno ali stvarno
-slanje će failati za sve osim `idsssarajevo@gmail.com`.
+u UI-ju i audit logu.
+
+**Ažuriranje 2026-07-10:** domena `idss.ba` je verifikovana (DKIM/SPF preko
+Optima Hostinga, vidi DECISION_LOG CD-003), potvrđeno stvarnom test porukom
+sa `last_event: delivered`. `RESEND_FROM_EMAIL` promijenjen na
+`direktor@idss.ba`. Sandbox ograničenje više ne postoji.
 
 ## Technical Notes
 - Vidi `CONSTITUTION.md` §5.5 (ažurirano ovim sprintom sa preciznim recipient pravilom)

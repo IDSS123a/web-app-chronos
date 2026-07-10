@@ -56,9 +56,19 @@ verificira, Resend sandbox nalog dozvoljava slanje isključivo na email
 vlasnika Resend naloga (u ovom slučaju `idsssarajevo@gmail.com`) — svaki
 drugi primalac (npr. `direktor@idss.ba`) vraća grešku "You can only send
 testing emails to your own email address". Ovo NIJE greška u Chronos kodu —
-kod je ispravno pozvao Resend API i ispravno obradio grešku. Institucionalni
-email primaoci (svi @idss.ba nalozi) neće stvarno primati podsjetnike dok se
-domena ne verificira.
+kod je ispravno pozvao Resend API i ispravno obradio grešku.
+
+**RIJEŠENO 2026-07-10:** domena `idss.ba` je verifikovana na Resend-u
+(DKIM/SPF zapisi dodani preko hosting providera Optima Hosting, na
+izolovanoj poddomeni `send.idss.ba` — postojeći mail sistem škole
+nedirnut, vidi memoriju `reference-idss123a-shared-resend-domain` za
+tačne zapise i obrazac za buduće IDSS123a projekte). Status potvrđen
+`verified` preko Resend API-ja, i potvrđen stvarnom test porukom
+(`last_event: delivered`) na `info@idss.ba` i
+`info-mejtas@montessorihouse.ba`. `RESEND_FROM_EMAIL` promijenjen sa
+sandbox defaulta (`onboarding@resend.dev`) na `direktor@idss.ba`.
+Sandbox ograničenje više ne postoji — svi @idss.ba i
+@montessorihouse.ba primaoci sada stvarno primaju podsjetnike.
 
 ---
 
