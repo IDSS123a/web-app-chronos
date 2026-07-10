@@ -10,6 +10,23 @@ opisani.
 
 ---
 
+## Poznat problem — riješen 2026-07-10: "no-deploy" / 502 na prvom deploy-u
+
+Ako je aplikacija bila deploy-ovana prije 10.07.2026. i nikad se nije
+uspješno pokrenula (stranica vraća grešku, Render dashboard ne pokazuje
+uspješan deploy), uzrok je bio: `tsx` i `cross-env` — alati koje
+`npm run start` stvarno koristi u produkciji — bili su pogrešno
+klasifikovani kao `devDependencies` umjesto `dependencies`, pa ih
+produkcijska instalacija nije postavila. Popravljeno u `package.json`.
+
+**Ako se ovo ikad ponovi**: u Render dashboard-u otvori servis → **Manual
+Deploy** → **Deploy latest commit** da povučeš najnoviju ispravku, i prati
+**Logs** tab da vidiš stvaran izlaz `npm install`/`npm run build`/
+`npm run start` komandi — to je najbrži način da se vidi tačan uzrok ako se
+nešto slično opet desi.
+
+---
+
 ## Pregled arhitekture
 
 Cijela aplikacija (i sajt koji vidiš i pozadinski servis koji šalje
