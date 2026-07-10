@@ -141,7 +141,7 @@ export default function App() {
   const [undoToast, setUndoToast] = useState<{ visible: boolean; message: string; actionId: string; undoable: boolean } | null>(null);
 
   // 6. Reminder scan modal popup (Sprint 06 — real Resend send, not a client-side simulation)
-  const [isCronSimulatorOpen, setIsCronSimulatorOpen] = useState(false);
+  const [isReminderScanModalOpen, setIsReminderScanModalOpen] = useState(false);
   const [reminderScanState, setReminderScanState] = useState<
     { status: 'RUNNING' } | { status: 'DONE'; result: ReminderScanResult } | { status: 'ERROR'; message: string } | null
   >(null);
@@ -352,9 +352,9 @@ export default function App() {
   // 9. Manual reminder scan trigger (SUPER_ADMIN only, mirrors CONSTITUTION.md
   // §5.5) — Sprint 06 replaced the client-side "cron simulator" with a real
   // call to the same scan the 08:00 Europe/Sarajevo node-cron job runs.
-  const runCronSimulation = async () => {
+  const runReminderScanNow = async () => {
     setReminderScanState({ status: 'RUNNING' });
-    setIsCronSimulatorOpen(true);
+    setIsReminderScanModalOpen(true);
 
     try {
       const result = await runReminderScan();
@@ -485,22 +485,24 @@ export default function App() {
             )}
           </nav>
 
-          {/* Cron Simulation Section (Section 6.3 testing utility) */}
+          {/* Manual reminder scan trigger — runs the exact same logic as the
+              08:00 Europe/Sarajevo cron job, on demand. Real emails go out;
+              this is not a simulator (was, before Sprint 06). */}
           <div className="bg-slate-950/40 rounded-2xl p-4.5 border border-slate-800/80 space-y-3">
             <h4 className="text-[10px] font-extrabold text-amber-500 uppercase tracking-widest flex items-center gap-1.5">
               <Shield className="w-3.5 h-3.5 text-amber-500" />
               Sistemski Servis
             </h4>
             <p className="text-[10px] text-slate-400 leading-normal">
-              Simulirajte jutarnji <strong className="text-slate-300 font-bold">08:00 AM Cron Job</strong> za skeniranje i slanje e-mailova.
+              Ručno pokreni servis podsjetnika koji inače automatski radi svako jutro u <strong className="text-slate-300 font-bold">08:00</strong> — stvarno šalje email(ove) ako ima obaveza koje dospijevaju za 3 dana.
             </p>
             <button
-              id="run-cron-simulation-btn"
-              onClick={runCronSimulation}
+              id="run-reminder-scan-btn"
+              onClick={runReminderScanNow}
               className="w-full py-2.5 px-3 bg-amber-500 text-slate-950 hover:bg-amber-400 font-extrabold text-[10px] rounded-full transition-colors cursor-pointer flex items-center justify-center gap-1.5 shadow-sm uppercase tracking-widest"
             >
               <RefreshCw className="w-3.5 h-3.5" />
-              Pokreni Cron (08:00 AM)
+              Pokreni scan sada
             </button>
           </div>
 
@@ -659,8 +661,8 @@ export default function App() {
         </div>
       )}
 
-      {/* 13. Interactive Cron Simulator Popup Drawer */}
-      {isCronSimulatorOpen && (
+      {/* 13. Manual reminder-scan result modal */}
+      {isReminderScanModalOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 overflow-y-auto font-sans">
           <div className="bg-white rounded-3xl w-full max-w-2xl border border-slate-200 shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="bg-slate-50 border-b border-slate-200 px-6 py-5 flex justify-between items-center">
@@ -671,7 +673,7 @@ export default function App() {
                 </h3>
               </div>
               <button
-                onClick={() => setIsCronSimulatorOpen(false)}
+                onClick={() => setIsReminderScanModalOpen(false)}
                 className="p-1.5 hover:bg-slate-200 text-slate-400 hover:text-slate-700 rounded-lg cursor-pointer"
               >
                 <X className="w-5 h-5" />
@@ -734,10 +736,10 @@ export default function App() {
             {/* Footer buttons */}
             <div className="bg-slate-50 border-t border-slate-200 px-6 py-4.5 flex justify-end">
               <button
-                onClick={() => setIsCronSimulatorOpen(false)}
+                onClick={() => setIsReminderScanModalOpen(false)}
                 className="px-8 py-3 bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs uppercase tracking-widest rounded-full transition-all cursor-pointer shadow-sm"
               >
-                Zatvori simulator
+                Zatvori
               </button>
             </div>
           </div>
