@@ -150,15 +150,30 @@ obligationsRouter.patch('/:id/checklist/:itemIndex', async (req, res) => {
  * Role required: SUPER_ADMIN (any), STANDARD_USER (own obligations only)
  * Body: multipart/form-data, field name "file" (PDF/DOC/DOCX/JPEG/PNG, max 10MB)
  * Response: { success: true, data: Obligation }
- * Errors: 401, 403, 404, 422 (bad file), 500
+ * Errors: 401, 403, 404, 413 (too large), 422 (bad file), 500
  */
-obligationsRouter.post('/:id/attachment', upload.single('file'), async (req, res) => {
+function handleUploadMiddleware(req: import('express').Request, res: import('express').Response, next: import('express').NextFunction): void {
+  upload.single('file')(req, res, (err: unknown) => {
+    if (!err) {
+      next();
+      return;
+    }
+    if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
+      res.status(413).json({ success: false, error: 'Priložena datoteka premašuje maksimalni limit od 10MB.' });
+      return;
+    }
+    console.error('[POST /:id/attachment] upload middleware error:', err);
+    res.status(422).json({ success: false, error: 'Greška pri obradi priloga.' });
+  });
+}
+
+obligationsRouter.post('/:id/attachment', handleUploadMiddleware, async (req, res) => {
   if (!req.file) {
     res.status(422).json({ success: false, error: 'Fajl nije priložen.' });
     return;
   }
 
-  const validationError = validateAttachmentFile(req.file.mimetype, req.file.size);
+  const validationError = validateAttachmentFile(req.file.mimetype, req.file.size, req.file.buffer);
   if (validationError) {
     res.status(422).json({ success: false, error: validationError });
     return;

@@ -14,22 +14,35 @@
 import { z } from 'zod';
 import type { ChecklistItem, InstitutionType, PriorityType, RecurringInterval } from '../../../src/types';
 
+// Mirrors the keys of CATEGORY_STYLE_MAP (src/types.ts) — kept as an
+// explicit enum here (rather than a bare `z.string()`) so a direct API call
+// can't set an arbitrary category value that only the UI happens to render
+// safely via its fallback style.
+export const OBLIGATION_CATEGORIES = [
+  'NERADNI_DAN',
+  'DOGAĐAJ',
+  'RASPUST',
+  'NENASTAVNI_DAN',
+  'PROJEKT',
+  'ADMINISTRACIJA',
+] as const;
+
 export const ChecklistItemSchema = z.object({
-  task: z.string().trim().min(1),
+  task: z.string().trim().min(1).max(300, 'Stavka kontrolne liste je predugačka (max 300 karaktera).'),
   done: z.boolean(),
 });
 
 export const ObligationCreateSchema = z.object({
-  title: z.string().trim().min(3, 'Naziv obaveze mora imati najmanje 3 karaktera.'),
+  title: z.string().trim().min(3, 'Naziv obaveze mora imati najmanje 3 karaktera.').max(200, 'Naziv obaveze je predugačak (max 200 karaktera).'),
   institution: z.enum(['IDSS', 'MONTESSORI']),
-  category: z.string().min(1),
+  category: z.enum(OBLIGATION_CATEGORIES),
   due_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Datum dospijeća nije u ispravnom formatu (YYYY-MM-DD).'),
-  responsible_person: z.string().trim().min(2, 'Morate navesti ime odgovorne osobe.'),
+  responsible_person: z.string().trim().min(2, 'Morate navesti ime odgovorne osobe.').max(120, 'Ime odgovorne osobe je predugačko (max 120 karaktera).'),
   priority: z.enum(['NIZAK', 'SREDNJI', 'VISOK']),
-  checklist_items: z.array(ChecklistItemSchema).default([]),
+  checklist_items: z.array(ChecklistItemSchema).max(50, 'Previše stavki kontrolne liste (max 50).').default([]),
   is_recurring: z.boolean().default(false),
   recurring_interval: z.enum(['NONE', 'MONTHLY', 'HALF_YEARLY', 'YEARLY']).default('NONE'),
-  watcher_ids: z.array(z.string().uuid()).default([]),
+  watcher_ids: z.array(z.string().uuid()).max(50, 'Previše watchers (max 50).').default([]),
 });
 
 export const ObligationUpdateSchema = ObligationCreateSchema.partial();
@@ -40,7 +53,7 @@ export const ObligationUpdateSchema = ObligationCreateSchema.partial();
 export interface ObligationCreateInput {
   title: string;
   institution: InstitutionType;
-  category: string;
+  category: (typeof OBLIGATION_CATEGORIES)[number];
   due_date: string;
   responsible_person: string;
   priority: PriorityType;

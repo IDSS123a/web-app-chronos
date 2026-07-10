@@ -48,10 +48,14 @@ auditLogsRouter.post('/', async (req, res) => {
  * GET /api/audit-logs
  * Role required: any authenticated user
  * Response: { success: true, data: AuditLog[] }
+ * SUPER_ADMIN sees every entry; STANDARD_USER sees non-obligation entries,
+ * their own actions, and entries about obligations they can currently see
+ * (creator/watcher) — mirrors the obligations visibility rule (§5.7) so this
+ * endpoint can't be used to read the titles of obligations hidden from them.
  */
-auditLogsRouter.get('/', async (_req, res) => {
+auditLogsRouter.get('/', async (req, res) => {
   try {
-    const logs = await repo.getAllAuditLogs();
+    const logs = await repo.getVisibleAuditLogs(req.profile!);
     res.json({ success: true, data: logs });
   } catch (err) {
     console.error('[GET /api/audit-logs]', err);

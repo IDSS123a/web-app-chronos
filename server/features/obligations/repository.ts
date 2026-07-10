@@ -120,6 +120,36 @@ export async function getVisibleObligations(profile: AuthenticatedProfile): Prom
   return toObligations(rows, watcherMap);
 }
 
+/** IDs only of obligations `profile` may currently see (same rule as
+ * `getVisibleObligations`) — used to filter the audit log by the same
+ * confidentiality boundary (CONSTITUTION.md §5.7), without pulling full
+ * rows. Returns `null` for SUPER_ADMIN as a sentinel meaning "no filter
+ * needed" rather than an expensive "every obligation id" list. */
+export async function getVisibleObligationIds(profile: AuthenticatedProfile): Promise<string[] | null> {
+  if (profile.role === 'SUPER_ADMIN') return null;
+
+  const supabase = getSupabaseServerClient();
+
+  const { data: watchedRows, error: watchedError } = await supabase
+    .from('obligation_watchers')
+    .select('obligation_id')
+    .eq('user_id', profile.id);
+  if (watchedError) throw new Error(`getVisibleObligationIds (watched) failed: ${watchedError.message}`);
+
+  const watchedIds = (watchedRows ?? []).map((r) => r.obligation_id as string);
+
+  let query = supabase.from('obligations').select('id');
+  query =
+    watchedIds.length > 0
+      ? query.or(`created_by.eq.${profile.id},id.in.(${watchedIds.join(',')})`)
+      : query.eq('created_by', profile.id);
+
+  const { data, error } = await query;
+  if (error) throw new Error(`getVisibleObligationIds failed: ${error.message}`);
+
+  return (data ?? []).map((r) => r.id as string);
+}
+
 /** Every non-completed obligation, system-wide — used by the reminder scan
  * (server/features/reminders/domain.ts), which isn't scoped to any one user. */
 export async function getActiveObligationsForReminderScan(): Promise<Obligation[]> {

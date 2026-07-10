@@ -32,23 +32,31 @@ function requireEditable(profile: AuthenticatedProfile, obligation: Obligation):
   }
 }
 
-/** Mirrors the original App.tsx calculateNextDueDate (PRD Section 5.3). */
+/**
+ * Advances a YYYY-MM-DD due date by the recurring interval, clamping to the
+ * last day of the target month when the original day doesn't exist there
+ * (e.g. Jan 31 + 1 month -> Feb 28/29, not an overflowed "March 3" — the
+ * naive `Date#setMonth()` approach silently rolls over into the next month
+ * instead of clamping, which would drift a month-end deadline forward a
+ * little further on every cycle it crosses a shorter month). Works entirely
+ * in y/m/d integers rather than round-tripping through `Date`/`toISOString`,
+ * which also avoids any UTC-vs-local-timezone off-by-one-day risk (see
+ * src/lib/date-utils.ts for the same class of bug fixed elsewhere, Sprint 05).
+ */
 export function calculateNextDueDate(currentDueDate: string, interval: RecurringInterval): string | null {
-  const date = new Date(currentDueDate);
-  switch (interval) {
-    case 'MONTHLY':
-      date.setMonth(date.getMonth() + 1);
-      break;
-    case 'HALF_YEARLY':
-      date.setMonth(date.getMonth() + 6);
-      break;
-    case 'YEARLY':
-      date.setFullYear(date.getFullYear() + 1);
-      break;
-    default:
-      return null;
-  }
-  return date.toISOString().split('T')[0];
+  const monthsToAdd = interval === 'MONTHLY' ? 1 : interval === 'HALF_YEARLY' ? 6 : interval === 'YEARLY' ? 12 : null;
+  if (monthsToAdd === null) return null;
+
+  const [year, month, day] = currentDueDate.split('-').map(Number);
+  const totalMonths = (month - 1) + monthsToAdd;
+  const targetYear = year + Math.floor(totalMonths / 12);
+  const targetMonthIndex = totalMonths % 12; // 0-indexed
+
+  const lastDayOfTargetMonth = new Date(targetYear, targetMonthIndex + 1, 0).getDate();
+  const clampedDay = Math.min(day, lastDayOfTargetMonth);
+
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${targetYear}-${pad(targetMonthIndex + 1)}-${pad(clampedDay)}`;
 }
 
 export async function createObligation(

@@ -19,6 +19,19 @@ import type { Obligation } from '../../../src/types';
 
 const REMINDER_DAYS_AHEAD = 3;
 
+/** Obligation fields (title, responsible_person) are free-text user input —
+ * escape before interpolating into the outbound email HTML, otherwise a
+ * title like `<a href="...">` would render as a live link/markup in every
+ * recipient's inbox instead of literal text. */
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function buildReminderEmailHtml(obligation: Obligation): string {
   return `
     <div style="font-family: sans-serif; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px; max-width: 600px;">
@@ -30,10 +43,10 @@ function buildReminderEmailHtml(obligation: Obligation): string {
         <p>Ovo je automatski podsjetnik da administrativni rok za stavku dospijeva za tačno <strong>3 dana</strong>:</p>
 
         <div style="background-color: #f8fafc; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #E30613;">
-          <p style="margin: 0 0 5px 0;"><strong>Obaveza:</strong> ${obligation.title}</p>
+          <p style="margin: 0 0 5px 0;"><strong>Obaveza:</strong> ${escapeHtml(obligation.title)}</p>
           <p style="margin: 0 0 5px 0;"><strong>Ustanova:</strong> ${obligation.institution === 'IDSS' ? 'Internationale Deutsche Schule (IDSS)' : 'IMH Montessori House'}</p>
           <p style="margin: 0 0 5px 0;"><strong>Rok dospijeća:</strong> ${obligation.due_date.split('-').reverse().join('.')}</p>
-          <p style="margin: 0;"><strong>Odgovorna osoba:</strong> ${obligation.responsible_person}</p>
+          <p style="margin: 0;"><strong>Odgovorna osoba:</strong> ${escapeHtml(obligation.responsible_person)}</p>
         </div>
 
         <p>Molimo Vas da blagovremeno poduzmete akcije, ažurirate kontrolne stavke u aplikaciji Chronos i priložite relevantne dokumente.</p>
@@ -92,7 +105,10 @@ export async function runDailyReminderScan(
     try {
       await sendEmail({
         to: recipientEmails,
-        subject: `[CHRONOS] Obaveza ističe za 3 dana: ${obligation.title}`,
+        // Strip CR/LF defensively — a title is free text and should never
+        // need embedded newlines; this keeps the subject a single line
+        // regardless of what the Resend API itself would otherwise allow.
+        subject: `[CHRONOS] Obaveza ističe za 3 dana: ${obligation.title.replace(/[\r\n]+/g, ' ')}`,
         html: buildReminderEmailHtml(obligation),
       });
       emailsSent++;

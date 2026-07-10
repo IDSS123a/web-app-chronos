@@ -4,6 +4,8 @@
  */
 
 import { getSupabaseServerClient } from '../../lib/supabase-server';
+import { getVisibleObligationIds } from '../obligations/repository';
+import type { AuthenticatedProfile } from '../../types';
 import type { AuditLog } from '../../../src/types';
 
 interface AuditLogRow {
@@ -45,14 +47,33 @@ export async function createAuditLog(input: AuditLogInsertInput): Promise<AuditL
   return mapRow(data as AuditLogRow);
 }
 
-export async function getAllAuditLogs(): Promise<AuditLog[]> {
+/**
+ * Audit log rows visible to `profile` — mirrors the obligation confidentiality
+ * boundary (CONSTITUTION.md §5.7) instead of returning every row to every
+ * authenticated user. SUPER_ADMIN sees everything. Everyone else sees:
+ *  - non-Obligations entries (e.g. login/logout), which carry no financial
+ *    obligation content, plus
+ *  - entries about their own actions (so deleting/editing your own obligation
+ *    still shows in your own history even after it no longer exists), plus
+ *  - Obligations entries whose target is an obligation they can currently see
+ *    (creator or watcher) — this is what previously leaked private obligation
+ *    titles (via the `changes` text) to any authenticated user.
+ */
+export async function getVisibleAuditLogs(profile: AuthenticatedProfile): Promise<AuditLog[]> {
   const supabase = getSupabaseServerClient();
-  const { data, error } = await supabase
-    .from('audit_logs')
-    .select('*')
-    .order('timestamp', { ascending: false });
+  let query = supabase.from('audit_logs').select('*').order('timestamp', { ascending: false });
 
-  if (error) throw new Error(`getAllAuditLogs failed: ${error.message}`);
+  if (profile.role !== 'SUPER_ADMIN') {
+    const visibleObligationIds = await getVisibleObligationIds(profile);
+    const clauses = [`target_table.neq.Obligations`, `user_id.eq.${profile.id}`];
+    if (visibleObligationIds && visibleObligationIds.length > 0) {
+      clauses.push(`target_id.in.(${visibleObligationIds.join(',')})`);
+    }
+    query = query.or(clauses.join(','));
+  }
+
+  const { data, error } = await query;
+  if (error) throw new Error(`getVisibleAuditLogs failed: ${error.message}`);
   return (data as AuditLogRow[]).map(mapRow);
 }
 
