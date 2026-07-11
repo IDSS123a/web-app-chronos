@@ -26,11 +26,12 @@ import Dashboard from './components/Dashboard';
 import CalendarView from './components/CalendarView';
 import AuditLogsView from './components/AuditLogsView';
 import NotificationsView from './components/NotificationsView';
+import AdminPanelView from './components/AdminPanelView';
 import ObligationForm from './components/ObligationForm';
 import PrintTemplate from './components/PrintTemplate';
 import {
   Clock, LogOut, CheckSquare, History, Calendar as CalendarIcon,
-  Menu, X, Shield, RefreshCw, AlertTriangle, Bell
+  Menu, X, Shield, RefreshCw, AlertTriangle, Bell, ShieldCheck
 } from 'lucide-react';
 import idssLogo from './assets/logos/idss-logo.png';
 import imhLogo from './assets/logos/imh-logo.png';
@@ -112,7 +113,7 @@ export default function App() {
   }, [currentUser]);
 
   // 4. View and UI States
-  const [currentView, setCurrentView] = useState<'DASHBOARD' | 'CALENDAR' | 'AUDIT_LOGS' | 'NOTIFICATIONS'>('DASHBOARD');
+  const [currentView, setCurrentView] = useState<'DASHBOARD' | 'CALENDAR' | 'AUDIT_LOGS' | 'NOTIFICATIONS' | 'ADMIN'>('DASHBOARD');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedObligation, setSelectedObligation] = useState<Obligation | null>(null);
 
@@ -483,6 +484,23 @@ export default function App() {
                 Interne obavijesti
               </button>
             )}
+
+            {currentUser.role === 'SUPER_ADMIN' && (
+              <button
+                onClick={() => {
+                  setCurrentView('ADMIN');
+                  setIsMobileMenuOpen(false);
+                }}
+                className={`w-full flex items-center gap-3 px-3 py-3 text-xs font-bold rounded-xl transition-all cursor-pointer border ${
+                  currentView === 'ADMIN'
+                    ? 'bg-amber-500/10 text-amber-500 border-amber-500/30 font-extrabold shadow-sm'
+                    : 'text-slate-400 hover:text-slate-100 border-transparent hover:bg-slate-800/40'
+                }`}
+              >
+                <ShieldCheck className={`w-4 h-4 ${currentView === 'ADMIN' ? 'text-amber-500' : 'text-slate-500'}`} />
+                Super Admin panel
+              </button>
+            )}
           </nav>
 
           {/* Manual reminder scan trigger — runs the exact same logic as the
@@ -537,7 +555,8 @@ export default function App() {
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">
               {currentView === 'DASHBOARD' ? 'CHRONOS DASHBOARD' :
                currentView === 'CALENDAR' ? 'CHRONOS KALENDAR' :
-               currentView === 'NOTIFICATIONS' ? 'CHRONOS OBAVIJESTI' : 'CHRONOS AUDIT LOGS'}
+               currentView === 'NOTIFICATIONS' ? 'CHRONOS OBAVIJESTI' :
+               currentView === 'ADMIN' ? 'CHRONOS ADMIN' : 'CHRONOS AUDIT LOGS'}
             </span>
             <p className="text-lg font-light text-slate-600 mt-0.5">
               {formatDateBosnianLong(now)}
@@ -616,6 +635,10 @@ export default function App() {
 
           {!dataLoading && !dataError && currentView === 'NOTIFICATIONS' && currentUser.role === 'SUPER_ADMIN' && (
             <NotificationsView />
+          )}
+
+          {!dataLoading && !dataError && currentView === 'ADMIN' && currentUser.role === 'SUPER_ADMIN' && (
+            <AdminPanelView currentUserId={currentUser.id} />
           )}
 
         </div>

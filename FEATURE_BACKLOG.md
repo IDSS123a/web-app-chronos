@@ -21,7 +21,8 @@
 | 07 | Calendar, Print & UX Polish | Kalendar/print prema real API-ju, mobile provjera | DONE |
 | 08 | Deployment | Render/hosting, env varijable, RLS hardening, Sentry | DONE |
 | 09 | Interni notifikacioni sistem | Grupe primalaca, zakazani izvještaji, ručno slanje, evidencija | DONE |
-| 10+ | Backlog / Nice-to-have | Vidi ispod | TODO |
+| 10 | Super Admin panel | Upravljanje korisnicima, statistike, bulk uvoz kalendara | DONE |
+| 11+ | Backlog / Nice-to-have | Vidi ispod | TODO |
 
 **Napomena o renumeraciji (2026-07-09):** Sprint 03 je originalno bio planiran
 kao "File Attachments", ali je zamijenjen hitnijim sigurnosnim zahtjevom
@@ -125,6 +126,28 @@ osnovu onoga što je stvarno završeno u prethodnom).
   domain verifikacije)
 - Testirano uživo end-to-end, uključujući stvarnu isporuku (Resend
   `delivered`) i RBAC provjeru (STANDARD_USER blokiran na svih 5 ruta)
+
+---
+
+## SPRINT 10 — Super Admin panel — DONE
+
+- Poseban ekran, vidljiv isključivo SUPER_ADMIN roli (§5.9)
+- Korisnici: lista svih naloga, direktno kreiranje (jednokratni prikaz
+  generisane lozinke, isti obrazac kao `scripts/seed-users.ts`), promjena
+  uloge/ustanove, blokiranje/deblokiranje (Supabase `ban_duration`), trajno
+  brisanje sa provjerom unaprijed protiv FK ograničenja (blokira uz jasnu
+  poruku ako bi obrisalo institucionalni trag, predlaže blokiranje umjesto)
+- Uvid po korisniku: broj kreiranih/završenih obaveza, zadnjih N unosa iz
+  dnevnika aktivnosti
+- Sistemske statistike: korisnici po ulozi, obaveze po statusu/ustanovi/
+  kategoriji, sažetak slanja notifikacija
+- Bulk uvoz kalendara: upload JSON fajla, pregled prije potvrde, automatski
+  watchers/audit log — zamjenjuje ručne jednokratne skripte korištene za
+  IDSS/IMH kalendar 2026/2027
+- Samozaštita: SUPER_ADMIN ne može blokirati ni obrisati sam sebe
+- Testirano uživo: sve CRUD operacije, oba slučaja brisanja (dozvoljeno i
+  blokirano), bulk uvoz (uspješan i odbijen nevažeći unos), RBAC
+  (STANDARD_USER 403 na svim rutama), samozaštita — vidi `sprints/SPRINT_10.md`
 
 ---
 

@@ -6,7 +6,10 @@
  */
 
 import { supabase } from './supabase-browser';
-import type { User, Obligation, AuditLog, ChecklistItem, UserSummary, NotificationGroup, NotificationSchedule, NotificationLogEntry } from '../types';
+import type {
+  User, Obligation, AuditLog, ChecklistItem, UserSummary, NotificationGroup, NotificationSchedule, NotificationLogEntry,
+  AdminUserSummary, AdminUserActivity, AdminSystemStats, AdminDeletionBlockers, CalendarImportResult,
+} from '../types';
 
 interface ApiSuccess<T> {
   success: true;
@@ -260,4 +263,80 @@ export async function sendManualNotification(payload: ManualSendPayload): Promis
 export async function fetchNotificationLog(): Promise<NotificationLogEntry[]> {
   const response = await authorizedFetch('/api/notifications/log');
   return parseResponse<NotificationLogEntry[]>(response);
+}
+
+// --- Super Admin panel (Sprint 10) — sve rute SUPER_ADMIN-only ---
+
+export async function fetchAdminUsers(): Promise<AdminUserSummary[]> {
+  const response = await authorizedFetch('/api/admin/users');
+  return parseResponse<AdminUserSummary[]>(response);
+}
+
+export interface CreateAdminUserPayload {
+  full_name: string;
+  email: string;
+  role: 'SUPER_ADMIN' | 'STANDARD_USER';
+  institution: 'IDSS' | 'MONTESSORI' | 'BOTH';
+}
+
+export async function createAdminUser(payload: CreateAdminUserPayload): Promise<{ id: string; password: string }> {
+  const response = await authorizedFetch('/api/admin/users', { method: 'POST', body: JSON.stringify(payload) });
+  return parseResponse<{ id: string; password: string }>(response);
+}
+
+export async function updateAdminUser(id: string, payload: Partial<CreateAdminUserPayload>): Promise<void> {
+  const response = await authorizedFetch(`/api/admin/users/${id}`, { method: 'PATCH', body: JSON.stringify(payload) });
+  await parseResponse<null>(response);
+}
+
+export async function banAdminUser(id: string): Promise<void> {
+  const response = await authorizedFetch(`/api/admin/users/${id}/ban`, { method: 'POST' });
+  await parseResponse<null>(response);
+}
+
+export async function unbanAdminUser(id: string): Promise<void> {
+  const response = await authorizedFetch(`/api/admin/users/${id}/unban`, { method: 'POST' });
+  await parseResponse<null>(response);
+}
+
+export type DeleteAdminUserResult = { deleted: true } | { deleted: false; blockers: AdminDeletionBlockers };
+
+/** Deliberately bypasses parseResponse — a 409 "blocked" response is an
+ * expected, informative outcome here, not an error to throw away. */
+export async function deleteAdminUser(id: string): Promise<DeleteAdminUserResult> {
+  const response = await authorizedFetch(`/api/admin/users/${id}`, { method: 'DELETE' });
+  const body = await response.json();
+  if (response.status === 409) {
+    return { deleted: false, blockers: body.blockers as AdminDeletionBlockers };
+  }
+  if (body.success === false) {
+    throw new Error(body.error || 'Greška servera.');
+  }
+  return { deleted: true };
+}
+
+export async function fetchAdminUserActivity(id: string): Promise<AdminUserActivity> {
+  const response = await authorizedFetch(`/api/admin/users/${id}/activity`);
+  return parseResponse<AdminUserActivity>(response);
+}
+
+export async function fetchAdminStats(): Promise<AdminSystemStats> {
+  const response = await authorizedFetch('/api/admin/stats');
+  return parseResponse<AdminSystemStats>(response);
+}
+
+export interface CalendarImportPayload {
+  institution: 'IDSS' | 'MONTESSORI';
+  entries: Array<{
+    title: string;
+    category: string;
+    due_date: string;
+    responsible_person?: string;
+    priority?: 'NIZAK' | 'SREDNJI' | 'VISOK';
+  }>;
+}
+
+export async function importCalendar(payload: CalendarImportPayload): Promise<CalendarImportResult> {
+  const response = await authorizedFetch('/api/admin/calendar-import', { method: 'POST', body: JSON.stringify(payload) });
+  return parseResponse<CalendarImportResult>(response);
 }

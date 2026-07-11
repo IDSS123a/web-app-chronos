@@ -248,6 +248,51 @@ Pravilo:
   prije ubacivanja u odlazni email (ista pouka kao §5.5 sigurnosni nalaz,
   Sprint 08).
 
+### 5.9 Super Admin panel — dodano 2026-07-11 (Sprint 10)
+
+Zaseban administratorski ekran, vidljiv isključivo SUPER_ADMIN roli
+(`canManageUsers`, `server/lib/permissions.ts`) — nije vidljiv
+STANDARD_USER korisnicima ni u sidebar-u ni server-side (sve rute pod
+`/api/admin/*` provjeravaju ulogu na svakom pozivu, ne samo u UI).
+
+Pravilo:
+- **Kreiranje korisnika je direktno, ne javna registracija** — SUPER_ADMIN
+  unosi ime/email/ulogu/ustanovu, sistem generiše lozinku
+  (`randomBytes(12).toString('base64url')`, isti obrazac kao
+  `scripts/seed-users.ts`) i prikazuje je **jednom** u UI-ju. Nema
+  reda čekanja za odobrenje, nema samostalnog signup-a — potvrđeno s
+  direktorom pri specificiranju ovog sprinta.
+- **Blokiranje** (Supabase Auth `ban_duration`) sprječava prijavu bez
+  brisanja bilo kakvih podataka — reverzibilno, preferirano nad brisanjem
+  za naloge sa institucionalnim tragom.
+- **Trajno brisanje se provjerava unaprijed, nikad ne pada tiho.**
+  `obligations.created_by`, `audit_logs.user_id`,
+  `notification_groups/schedules.created_by`, `notification_log.sent_by`
+  su svi `ON DELETE NO ACTION` prema `profiles(id)` — namjerno, ne
+  CASCADE/SET NULL, jer audit trag mora ostati trajan i tačan (§5.4) i
+  institucionalni podaci ne smiju nestati kad neko napusti instituciju.
+  Brisanje zato prvo provjerava postojanje traga u sve četiri tabele; ako
+  postoji, vraća jasnu poruku sa brojem blokera po tabeli i predlaže
+  blokiranje umjesto brisanja, umjesto da pusti da FK ograničenje na bazi
+  baci sirovu grešku.
+- **Samozaštita** — SUPER_ADMIN ne može blokirati ni obrisati sam sebe
+  (`server/features/admin/domain.ts`), bez obzira koliko SUPER_ADMIN naloga
+  postoji.
+- **Sistemske statistike** — korisnici po ulozi, obaveze po
+  statusu/ustanovi/kategoriji, sažetak slanja notifikacija. "Potrošnja
+  tokena" eksplicitno van opsega — nema AI/LLM funkcionalnosti u aplikaciji
+  (§8), nema stvarne osnove za taj podatak.
+- **Bulk uvoz kalendara** — normalizovana, Chronos-vlastita JSON šema
+  (`{institution, entries: [{title, category, due_date,
+  responsible_person?, priority?}]}`), namjerno, a ne pokušaj
+  auto-parsiranja sirovih školskih kalendar-exporta (koji se razlikuju po
+  imenima polja i mijenjaju oblik između verzija istog fajla — vidi
+  `sprints/SPRINT_10.md`). Neko (SUPER_ADMIN, ili AI asistent koji pomaže
+  pripremiti izvorni fajl) prvo normalizuje u ovaj oblik; aplikacija zatim
+  samo validira + prikazuje pregled + uvozi, umjesto da nagađa. Zamjenjuje
+  ručne jednokratne Node/SQL skripte korištene za IDSS/IMH kalendar
+  2026/2027.
+
 ## 6. PODACI (Data model — sažetak, detalji u migracijama)
 
 - `profiles` (prati `auth.users`): `id`, `full_name`, `role`, `institution`

@@ -111,6 +111,55 @@ export interface NotificationLogEntry {
   recipients: NotificationLogRecipient[];
 }
 
+// --- Super Admin panel (Sprint 10) ---
+
+export interface AdminUserSummary {
+  id: string;
+  full_name: string;
+  email: string;
+  role: UserRole;
+  institution: InstitutionType | 'BOTH' | null;
+  created_at: string;
+  last_sign_in_at: string | null;
+  is_banned: boolean;
+}
+
+export interface AdminUserActivityLogEntry {
+  timestamp: string;
+  action_type: string;
+  target_table: string;
+  changes: string;
+}
+
+export interface AdminUserActivity {
+  obligationsCreated: number;
+  obligationsCompleted: number;
+  recentActivity: AdminUserActivityLogEntry[];
+}
+
+export interface AdminDeletionBlockers {
+  obligations: number;
+  auditLogs: number;
+  notificationGroups: number;
+  notificationSchedules: number;
+  notificationSends: number;
+}
+
+export interface AdminSystemStats {
+  usersByRole: Record<string, number>;
+  obligationsByStatus: Record<string, number>;
+  obligationsByInstitution: Record<string, number>;
+  obligationsByCategory: Record<string, number>;
+  notificationSendsByStatus: Record<string, number>;
+  totalObligations: number;
+  totalUsers: number;
+}
+
+export interface CalendarImportResult {
+  created: number;
+  errors: string[];
+}
+
 export const CATEGORY_STYLE_MAP: Record<string, CategoryInfo> = {
   'NERADNI_DAN': {
     label: 'Neradni dan (Praznik)',

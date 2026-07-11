@@ -16,6 +16,7 @@ import { remindersRouter } from './features/reminders/routes';
 import { registerReminderCronJob } from './features/reminders/cron';
 import { notificationsRouter } from './features/notifications/routes';
 import { registerNotificationCronJob } from './features/notifications/cron';
+import { adminRouter } from './features/admin/routes';
 
 const app = express();
 const isProduction = process.env.NODE_ENV === 'production';
@@ -36,6 +37,7 @@ app.use('/api/audit-logs', auditLogsRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/reminders', remindersRouter);
 app.use('/api/notifications', notificationsRouter);
+app.use('/api/admin', adminRouter);
 
 // Production (CD-006): this one Express process also serves the built Vite
 // frontend, instead of relying on Vite's dev server. Dev mode keeps using

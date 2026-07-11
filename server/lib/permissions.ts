@@ -25,3 +25,9 @@ export function canRunReminderScan(role: UserRole): boolean {
 export function canManageNotifications(role: UserRole): boolean {
   return role === 'SUPER_ADMIN';
 }
+
+/** Super Admin panel (Sprint 10) — upravljanje korisnicima, sistemske
+ * statistike, bulk uvoz kalendara. SUPER_ADMIN-only (vidi CONSTITUTION.md §5.9). */
+export function canManageUsers(role: UserRole): boolean {
+  return role === 'SUPER_ADMIN';
+}
