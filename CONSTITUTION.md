@@ -264,7 +264,16 @@ Pravilo:
   direktorom pri specificiranju ovog sprinta.
 - **Blokiranje** (Supabase Auth `ban_duration`) sprječava prijavu bez
   brisanja bilo kakvih podataka — reverzibilno, preferirano nad brisanjem
-  za naloge sa institucionalnim tragom.
+  za naloge sa institucionalnim tragom. **Poznato ograničenje** (Supabase
+  Auth arhitektura, ne Chronos kod): blokiranje odmah spriječava NOVU
+  prijavu, ali već izdat pristupni token (JWT, 1h vijek trajanja) ostaje
+  važeći do prirodnog isteka — Supabase provjerava status blokiranja samo
+  pri izdavanju tokena, ne pri svakoj njegovoj verifikaciji. Za instituciju
+  ove veličine (7 povjerljivih naloga) ovo je prihvatljiv rizik; UI
+  eksplicitno upozorava SUPER_ADMIN-a na ovo pri blokiranju (vidi
+  `AdminPanelView.tsx`). Ne graditi custom token-revocation/blocklist
+  sistem za ovo bez eksplicitnog zahtjeva — nesrazmjerna složenost za
+  stvaran rizik.
 - **Trajno brisanje se provjerava unaprijed, nikad ne pada tiho.**
   `obligations.created_by`, `audit_logs.user_id`,
   `notification_groups/schedules.created_by`, `notification_log.sent_by`

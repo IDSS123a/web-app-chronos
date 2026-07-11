@@ -109,3 +109,52 @@ isti princip kao ranije otkriven i dokumentiran u
 
 Nema otvorenih problema. Nema promjena delete_rule na bazi. Nema ostataka
 test podataka — potvrđeno upitom: tačno 7 stvarnih profila, 57 obaveza.
+
+---
+
+## ADDENDUM — Pretproduka pregled cijelog projekta (2026-07-11, prije push-a)
+
+Na direktan zahtjev direktora, prije prvog push-a finalne verzije na GitHub
+izvršen je "brutal stress test" cijelog projekta (ne samo Sprint 10):
+statički pregled admin panela i notifikacija (nikad ranije formalno
+pregledanih), pa live penetracioni test (RBAC bypass, mass-assignment,
+IDOR, XSS, injekcija) preko izolovanih privremenih SUPER_ADMIN/STANDARD_USER
+naloga, pa regresioni test preostalih dijelova app (auth, obligations,
+audit-logs, reminders — RBAC i vidljivost i dalje ispravni nakon Sprint
+09/10 promjena), pa granični/funkcionalni testovi (dužine polja, duplikati,
+prestupne godine, prazni unosi).
+
+**Pronađeno i popravljeno (5 nalaza, svi popravljeni prije push-a):**
+1. **Najozbiljniji: beskonačna render petlja u Dashboard.tsx** —
+   `filteredObligations`/`sortedObligations` nisu bile memoizovane pa su
+   pri SVAKOM renderu (uključujući nepovezane, npr. otvaranje kontrolne
+   liste) bile nove reference; `useEffect` koji sinhronizuje print prikaz
+   je zato okidao pri svakom renderu, izazivajući "Maximum update depth
+   exceeded" na svakom učitavanju Dashboard-a od Sprint 07 naovamo (kad je
+   print-filter-sync uveden). Nikad ranije uočeno jer prijašnji testovi
+   nisu provjeravali konzolu na error nivou. React-ov interni limit je
+   sprječavao stvarno zamrzavanje stranice, ali je trošio CPU na svakom
+   renderu. Popravljeno sa `useMemo`; potvrđeno live (marker-tehnika u
+   konzoli) da se greška više ne pojavljuje ni nakon filter klikova,
+   scroll-a, navigacije po školskim godinama.
+2. Brisanje/izmjena/blokiranje nepostojećeg korisničkog naloga vraćalo je
+   generički HTTP 500 (ili tiho ništa za PATCH) umjesto preciznog 404 —
+   popravljeno u `server/features/admin/domain.ts`.
+3. Kreiranje naloga sa email adresom koja već postoji vraćalo je generički
+   HTTP 500 umjesto preciznog 409 sa jasnom porukom — popravljeno u
+   `server/features/admin/repository.ts`.
+4. Ručno slanje notifikacije nije imalo isto CRLF-stripping zaštitu na
+   subject liniji kao reminder engine (nalaz iz sigurnosnog audita
+   2026-07-10) — nekonzistentnost popravljena u
+   `server/features/notifications/domain.ts`.
+5. **Poznato, dokumentovano ograničenje (nije kod bug):** blokiranje
+   naloga sprječava NOVU prijavu odmah, ali već izdat token (1h vijek)
+   ostaje važeći do isteka — Supabase provjerava ban status samo pri
+   izdavanju tokena. Dokumentovano u `CONSTITUTION.md` §5.9 i dodano
+   upozorenje u UI (`AdminPanelView.tsx`) umjesto građenja
+   custom token-revocation sistema (nesrazmjerno za instituciju od 7
+   povjerljivih naloga).
+
+Svi test nalozi/podaci ovog kruga obrisani i potvrđeni upitom na bazu
+(7 profila, 57 obaveza). `npx tsc --noEmit` i `npm run build` čisti.
+Projekat potvrđen spreman za push.

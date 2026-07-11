@@ -158,6 +158,9 @@ function UsersTab({ users, currentUserId, onChanged }: { users: AdminUserSummary
 
   return (
     <div className="space-y-4">
+      <div className="bg-blue-50 border border-blue-200 rounded-2xl p-3 text-[11px] text-slate-600">
+        Napomena: blokiranje sprječava <strong>novu</strong> prijavu odmah. Ako je korisnik trenutno prijavljen, njegova aktivna sesija ostaje važeća do isteka (do 1 sat) — ovo je ograničenje Supabase Auth tokena, ne greška u aplikaciji.
+      </div>
       <div className="flex justify-end">
         <button onClick={() => setCreating(true)} className="inline-flex items-center gap-1.5 px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-[11px] uppercase tracking-wider rounded-full transition-all shadow-sm cursor-pointer">
           <Plus className="w-4 h-4 text-amber-500" />

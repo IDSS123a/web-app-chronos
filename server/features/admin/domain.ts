@@ -38,6 +38,9 @@ export async function updateUser(id: string, input: UpdateUserInput, actor: Auth
   if (id === actor.id && input.role && input.role !== 'SUPER_ADMIN') {
     throw new HttpError(400, 'Ne možete sami sebi ukinuti Super Admin ulogu — zatražite da to uradi drugi Super Admin.');
   }
+  if (!(await repo.profileExists(id))) {
+    throw new HttpError(404, 'Korisnički nalog nije pronađen.');
+  }
 
   await repo.updateUserProfile(id, input);
 
@@ -54,6 +57,9 @@ export async function updateUser(id: string, input: UpdateUserInput, actor: Auth
 export async function setUserBanned(id: string, banned: boolean, actor: AuthenticatedProfile): Promise<void> {
   if (id === actor.id && banned) {
     throw new HttpError(400, 'Ne možete blokirati sami sebe.');
+  }
+  if (!(await repo.profileExists(id))) {
+    throw new HttpError(404, 'Korisnički nalog nije pronađen.');
   }
 
   await repo.setUserBanned(id, banned);
@@ -76,6 +82,9 @@ export interface DeleteUserResult {
 export async function deleteUser(id: string, actor: AuthenticatedProfile): Promise<DeleteUserResult> {
   if (id === actor.id) {
     throw new HttpError(400, 'Ne možete obrisati sami sebe.');
+  }
+  if (!(await repo.profileExists(id))) {
+    throw new HttpError(404, 'Korisnički nalog nije pronađen.');
   }
 
   const blockers = await repo.getDeletionBlockers(id);

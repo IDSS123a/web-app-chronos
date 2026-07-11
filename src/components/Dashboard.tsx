@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Fragment, useState, useEffect } from 'react';
+import { Fragment, useState, useEffect, useMemo } from 'react';
 import { Obligation, CATEGORY_STYLE_MAP, PriorityType, ObligationStatus } from '../types';
 import { formatDateLocal, getTodayDateString, getCurrentSchoolYearRange, getBosnianMonthName } from '../lib/date-utils';
 import {
@@ -135,7 +135,12 @@ export default function Dashboard({
   };
 
   // Filtering Logic
-  const filteredObligations = obligations.filter((obl) => {
+  // Memoized: without this, filteredObligations/sortedObligations were new
+  // array references on every render (even unrelated ones, e.g. expanding a
+  // checklist), which fed into the useEffect below and caused an infinite
+  // setPrintView -> re-render loop (found via live console-error checking,
+  // 2026-07-11 stress test).
+  const filteredObligations = useMemo(() => obligations.filter((obl) => {
     // 1. Institution
     if (institutionFilter !== 'BOTH' && obl.institution !== institutionFilter) {
       return false;
@@ -176,10 +181,10 @@ export default function Dashboard({
     if (endDate && obl.due_date > endDate) return false;
 
     return true;
-  });
+  }), [obligations, institutionFilter, searchQuery, statusTab, startDate, endDate, todayStr]);
 
   // Sorting Logic
-  const sortedObligations = [...filteredObligations].sort((a, b) => {
+  const sortedObligations = useMemo(() => [...filteredObligations].sort((a, b) => {
     let valA: any = a[sortBy];
     let valB: any = b[sortBy];
 
@@ -193,7 +198,7 @@ export default function Dashboard({
     if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
     if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
     return 0;
-  });
+  }), [filteredObligations, sortBy, sortDirection]);
 
   // Keep App.tsx's PrintTemplate in sync with exactly what's currently visible.
   useEffect(() => {

@@ -222,7 +222,10 @@ export async function sendManualNotification(input: ManualSendInput, profile: Au
       </div>
     </div>`;
 
-  const result = await dispatch(`[CHRONOS] ${input.subject}`, html, emailMap);
+  // Same defense-in-depth as the reminder engine's subject line (security
+  // audit, 2026-07-10): strip embedded newlines before the subject reaches
+  // the outbound email, even though Resend's own API already sanitizes this.
+  const result = await dispatch(`[CHRONOS] ${input.subject.replace(/[\r\n]+/g, ' ')}`, html, emailMap);
 
   await repo.createNotificationLog({
     sent_by: profile.id,

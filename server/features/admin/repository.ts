@@ -5,6 +5,7 @@
 
 import { randomBytes } from 'crypto';
 import { getSupabaseServerClient } from '../../lib/supabase-server';
+import { HttpError } from '../../lib/errors';
 import type { AdminUserSummary, AdminUserActivity, AdminSystemStats } from '../../../src/types';
 import type { CreateUserInput, UpdateUserInput } from './schemas';
 
@@ -63,7 +64,14 @@ export async function createUser(input: CreateUserInput): Promise<{ id: string; 
     password,
     email_confirm: true,
   });
-  if (error || !data.user) throw new Error(`createUser (auth) failed: ${error?.message ?? 'unknown error'}`);
+  if (error || !data.user) {
+    // Supabase reports this as `email_exists` (or an equivalent message) —
+    // surface it as a clean, specific 409 instead of a generic 500 so the
+    // SUPER_ADMIN knows exactly why creation failed.
+    const isDuplicate = error?.code === 'email_exists' || /already been registered|already exists/i.test(error?.message ?? '');
+    if (isDuplicate) throw new HttpError(409, `Nalog sa email adresom "${input.email}" već postoji.`);
+    throw new Error(`createUser (auth) failed: ${error?.message ?? 'unknown error'}`);
+  }
 
   const { error: profileError } = await supabase.from('profiles').insert({
     id: data.user.id,
@@ -131,6 +139,13 @@ export async function getDeletionBlockers(id: string): Promise<DeletionBlockers>
     notificationSchedules: notificationSchedules.count ?? 0,
     notificationSends: notificationSends.count ?? 0,
   };
+}
+
+export async function profileExists(id: string): Promise<boolean> {
+  const supabase = getSupabaseServerClient();
+  const { count, error } = await supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('id', id);
+  if (error) throw new Error(`profileExists failed: ${error.message}`);
+  return (count ?? 0) > 0;
 }
 
 export async function deleteUserHard(id: string): Promise<void> {
