@@ -10,7 +10,7 @@ import {
   Search, Plus, Printer, AlertTriangle, CheckCircle,
   Clock, CheckSquare, Eye, Edit, Trash2, Calendar,
   ArrowUpDown, Filter, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, FileText, ArrowRight, ShieldCheck,
-  RefreshCw
+  RefreshCw, RotateCcw
 } from 'lucide-react';
 
 interface DashboardProps {
@@ -531,7 +531,7 @@ export default function Dashboard({
                   </span>
                 </th>
                 <th className="py-4.5 px-4 text-center w-24">Status</th>
-                <th className="py-4.5 px-4 text-right w-40">Akcije</th>
+                <th className="py-4.5 px-4 text-right w-40 sticky right-0 bg-slate-50 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.05)]">Akcije</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -648,18 +648,24 @@ export default function Dashboard({
                         </td>
 
                         {/* Action buttons */}
-                        <td className="py-4 px-4 text-right">
+                        <td className={`py-4 px-4 text-right sticky right-0 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.05)] ${isPast ? 'bg-red-50' : 'bg-white'}`}>
                           <div className="flex items-center justify-end gap-1.5">
-                            {/* Complete trigger checkbox */}
-                            {obl.status !== 'ZAVRŠENO' && canEditObligation(obl) && (
+                            {/* Complete / reactivate toggle */}
+                            {canEditObligation(obl) && (
                               <button
                                 onClick={() => runWithProcessing(obl.id, onToggleStatus)}
                                 disabled={processingIds.has(obl.id)}
-                                className="p-1.5 hover:bg-green-50 text-emerald-600 hover:text-emerald-700 rounded-lg border border-slate-200 hover:border-green-300 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                                title="Završi obavezu"
+                                className={
+                                  obl.status === 'ZAVRŠENO'
+                                    ? 'p-1.5 hover:bg-amber-50 text-amber-600 hover:text-amber-700 rounded-lg border border-slate-200 hover:border-amber-300 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed'
+                                    : 'p-1.5 hover:bg-green-50 text-emerald-600 hover:text-emerald-700 rounded-lg border border-slate-200 hover:border-green-300 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed'
+                                }
+                                title={obl.status === 'ZAVRŠENO' ? 'Ponovo aktiviraj obavezu' : 'Završi obavezu'}
                               >
                                 {processingIds.has(obl.id) ? (
                                   <RefreshCw className="w-4.5 h-4.5 animate-spin" />
+                                ) : obl.status === 'ZAVRŠENO' ? (
+                                  <RotateCcw className="w-4.5 h-4.5" />
                                 ) : (
                                   <CheckSquare className="w-4.5 h-4.5" />
                                 )}
@@ -833,18 +839,24 @@ export default function Dashboard({
 
                   {/* Mobile Actions Drawer */}
                   <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
-                    {obl.status !== 'ZAVRŠENO' && canEditObligation(obl) && (
+                    {canEditObligation(obl) && (
                       <button
                         onClick={() => runWithProcessing(obl.id, onToggleStatus)}
                         disabled={processingIds.has(obl.id)}
-                        className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 border border-green-200 text-emerald-700 font-bold text-xs rounded-xl bg-green-50/50 hover:bg-green-50 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                        className={
+                          obl.status === 'ZAVRŠENO'
+                            ? 'flex-1 inline-flex items-center justify-center gap-1.5 py-2 border border-amber-200 text-amber-700 font-bold text-xs rounded-xl bg-amber-50/50 hover:bg-amber-50 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed'
+                            : 'flex-1 inline-flex items-center justify-center gap-1.5 py-2 border border-green-200 text-emerald-700 font-bold text-xs rounded-xl bg-green-50/50 hover:bg-green-50 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed'
+                        }
                       >
                         {processingIds.has(obl.id) ? (
                           <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        ) : obl.status === 'ZAVRŠENO' ? (
+                          <RotateCcw className="w-3.5 h-3.5" />
                         ) : (
                           <CheckCircle className="w-3.5 h-3.5" />
                         )}
-                        Završi
+                        {obl.status === 'ZAVRŠENO' ? 'Aktiviraj' : 'Završi'}
                       </button>
                     )}
 

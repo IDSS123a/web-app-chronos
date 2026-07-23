@@ -262,6 +262,14 @@ Pravilo:
   `scripts/seed-users.ts`) i prikazuje je **jednom** u UI-ju. Nema
   reda čekanja za odobrenje, nema samostalnog signup-a — potvrđeno s
   direktorom pri specificiranju ovog sprinta.
+- **Reset lozinke** — SUPER_ADMIN može resetovati lozinku bilo kojeg
+  naloga, uključujući vlastiti (nema self-protection ograničenja ovdje,
+  za razliku od blokiranja/brisanja — resetovanje vlastite lozinke je
+  normalna, bezopasna radnja). Nova lozinka se generiše i prikazuje
+  **jednom**, isti obrazac kao kreiranje naloga. Stara lozinka odmah
+  prestaje važiti (`supabase.auth.admin.updateUserById(id, { password })`).
+  Dodano 2026-07-23 nakon što je direktor prijavio da nema načina da
+  promijeni zaboravljenu/kompromitovanu lozinku bez ovog alata.
 - **Blokiranje** (Supabase Auth `ban_duration`) sprječava prijavu bez
   brisanja bilo kakvih podataka — reverzibilno, preferirano nad brisanjem
   za naloge sa institucionalnim tragom. **Poznato ograničenje** (Supabase

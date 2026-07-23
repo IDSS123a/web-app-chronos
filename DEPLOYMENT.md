@@ -110,6 +110,31 @@ Do tada, sistem radi ispravno, ali stvarno slanje uspijeva samo ka
 `idsssarajevo@gmail.com` (vlasnik Resend naloga) — svi ostali primaoci
 dobijaju grešku koja se ispravno bilježi u AuditLogs.
 
+**Status (2026-07-10):** domena `idss.ba` je verificirana na Resend-u,
+`RESEND_FROM_EMAIL` postavljen na `direktor@idss.ba`. Ovaj korak je završen
+— ostavljen ovdje kao referenca ako se ikad doda nova poddomena/domena.
+
+### Troubleshooting: "Slanje nije uspjelo" / greška o sandbox modu
+
+Ako Interne obavijesti ili podsjetnici odjednom počnu vraćati grešku tipa
+*"You can only send testing emails to your own email address..."* iako je
+domena verificirana (provjeri na resend.com/domains da status i dalje piše
+"Verified") — uzrok je skoro uvijek da produkcijske env varijable na
+Renderu **ne odgovaraju** lokalnom `.env` fajlu:
+
+1. Otvori Render dashboard → chronos-idss servis → Environment.
+2. Provjeri `RESEND_FROM_EMAIL` — mora biti tačno `direktor@idss.ba`
+   (ne stari placeholder `onboarding@resend.dev`).
+3. Provjeri da `RESEND_API_KEY` odgovara istom Resend nalogu na kojem je
+   `idss.ba` domena verificirana (uporedi sa vrijednošću u lokalnom
+   `.env` — ne dijeli ovaj ključ nigdje van Render/`.env`).
+4. Nakon izmjene, Render automatski redeploy-uje; provjeri "Logs" tab da
+   je deploy prošao, pa probaj ručno slanje ponovo.
+
+Ovo NIJE greška u kodu — `.env` promjene napravljene lokalno (ili od
+strane AI asistenta) se nikad automatski ne prenose na Render; to je
+uvijek ručni korak u Render dashboard-u.
+
 ## Korak 6 — Zaštita od kompromitovanih lozinki (Supabase) — NIJE dostupno na trenutnom planu
 
 Sigurnosni pregled (Sprint 08) je pronašao da ova opcija nije uključena, ali

@@ -89,6 +89,14 @@ export async function createUser(input: CreateUserInput): Promise<{ id: string; 
   return { id: data.user.id, password };
 }
 
+export async function resetPassword(id: string): Promise<string> {
+  const supabase = getSupabaseServerClient();
+  const password = generatePassword();
+  const { error } = await supabase.auth.admin.updateUserById(id, { password });
+  if (error) throw new Error(`resetPassword failed: ${error.message}`);
+  return password;
+}
+
 export async function updateUserProfile(id: string, patch: UpdateUserInput): Promise<void> {
   const supabase = getSupabaseServerClient();
   const { error } = await supabase.from('profiles').update(patch).eq('id', id);

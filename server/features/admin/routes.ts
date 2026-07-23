@@ -87,6 +87,15 @@ adminRouter.post('/users/:id/unban', async (req, res) => {
   }
 });
 
+adminRouter.post('/users/:id/reset-password', async (req, res) => {
+  try {
+    const result = await domain.resetPassword(req.params.id, req.profile!);
+    res.json({ success: true, data: result });
+  } catch (err) {
+    handleError(err, res, 'Greška pri resetovanju lozinke.');
+  }
+});
+
 adminRouter.delete('/users/:id', async (req, res) => {
   try {
     const result = await domain.deleteUser(req.params.id, req.profile!);

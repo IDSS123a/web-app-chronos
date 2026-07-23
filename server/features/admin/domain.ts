@@ -107,6 +107,29 @@ export async function deleteUser(id: string, actor: AuthenticatedProfile): Promi
   return { deleted: true };
 }
 
+/** SUPER_ADMIN resets any account's password, including their own —
+ * unlike ban/delete this has no self-protection guard, since resetting
+ * your own password is a normal, safe action (e.g. forgot it). Shown
+ * once in the UI, same pattern as account creation. */
+export async function resetPassword(id: string, actor: AuthenticatedProfile): Promise<{ password: string }> {
+  if (!(await repo.profileExists(id))) {
+    throw new HttpError(404, 'Korisnički nalog nije pronađen.');
+  }
+
+  const password = await repo.resetPassword(id);
+
+  await createAuditLog({
+    user_id: actor.id,
+    username: actor.username,
+    action_type: 'IZMJENA',
+    target_table: 'Users',
+    target_id: id,
+    changes: id === actor.id ? 'Vlastita lozinka resetovana.' : 'Lozinka korisničkog naloga resetovana od strane Super Admina.',
+  });
+
+  return { password };
+}
+
 export async function getUserActivity(id: string): Promise<AdminUserActivity> {
   return repo.getUserActivity(id);
 }

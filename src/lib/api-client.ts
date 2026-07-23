@@ -299,6 +299,11 @@ export async function unbanAdminUser(id: string): Promise<void> {
   await parseResponse<null>(response);
 }
 
+export async function resetAdminUserPassword(id: string): Promise<{ password: string }> {
+  const response = await authorizedFetch(`/api/admin/users/${id}/reset-password`, { method: 'POST' });
+  return parseResponse<{ password: string }>(response);
+}
+
 export type DeleteAdminUserResult = { deleted: true } | { deleted: false; blockers: AdminDeletionBlockers };
 
 /** Deliberately bypasses parseResponse — a 409 "blocked" response is an

@@ -9,12 +9,12 @@
 import { useState, useEffect, useCallback, useRef, type FormEvent } from 'react';
 import {
   ShieldCheck, Users, BarChart3, UploadCloud, Plus, Trash2, Edit, X,
-  RefreshCw, AlertTriangle, CheckCircle, Ban, Lock, Unlock, ChevronDown, ChevronUp, Copy,
+  RefreshCw, AlertTriangle, CheckCircle, Ban, Lock, Unlock, ChevronDown, ChevronUp, Copy, KeyRound,
 } from 'lucide-react';
 import type { AdminUserSummary, AdminUserActivity, AdminSystemStats, CalendarImportResult } from '../types';
 import {
   fetchAdminUsers, createAdminUser, updateAdminUser, banAdminUser, unbanAdminUser, deleteAdminUser,
-  fetchAdminUserActivity, fetchAdminStats, importCalendar, type CalendarImportPayload,
+  resetAdminUserPassword, fetchAdminUserActivity, fetchAdminStats, importCalendar, type CalendarImportPayload,
 } from '../lib/api-client';
 
 type Tab = 'KORISNICI' | 'STATISTIKE' | 'UVOZ';
@@ -118,6 +118,7 @@ function UsersTab({ users, currentUserId, onChanged }: { users: AdminUserSummary
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [blockedInfo, setBlockedInfo] = useState<{ user: AdminUserSummary; blockers: Record<string, number> } | null>(null);
+  const [resetResult, setResetResult] = useState<{ user: AdminUserSummary; password: string } | null>(null);
 
   const roleBadge = (role: string) => (
     <span className={`text-[9px] px-2 py-0.5 rounded font-extrabold uppercase tracking-wider border ${
@@ -132,6 +133,23 @@ function UsersTab({ users, currentUserId, onChanged }: { users: AdminUserSummary
     try {
       if (u.is_banned) await unbanAdminUser(u.id); else await banAdminUser(u.id);
       onChanged();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Greška.');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const handleResetPassword = async (u: AdminUserSummary) => {
+    const isSelf = u.id === currentUserId;
+    const question = isSelf
+      ? 'Resetovati vlastitu lozinku? Trenutna lozinka prestaje važiti odmah, nova će biti prikazana jednom.'
+      : `Resetovati lozinku za "${u.full_name}"? Trenutna lozinka prestaje važiti odmah, nova će biti prikazana jednom.`;
+    if (!confirm(question)) return;
+    setBusyId(u.id);
+    try {
+      const result = await resetAdminUserPassword(u.id);
+      setResetResult({ user: u, password: result.password });
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Greška.');
     } finally {
@@ -192,6 +210,14 @@ function UsersTab({ users, currentUserId, onChanged }: { users: AdminUserSummary
                   <Edit className="w-3.5 h-3.5" />
                 </button>
                 <button
+                  onClick={() => handleResetPassword(u)}
+                  disabled={busyId === u.id}
+                  className="p-1.5 hover:bg-blue-100 text-[#035EA1] rounded-lg cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                  title={u.id === currentUserId ? 'Resetuj vlastitu lozinku' : 'Resetuj lozinku'}
+                >
+                  {busyId === u.id ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <KeyRound className="w-3.5 h-3.5" />}
+                </button>
+                <button
                   onClick={() => handleBanToggle(u)}
                   disabled={busyId === u.id || u.id === currentUserId}
                   className="p-1.5 hover:bg-amber-100 text-amber-700 rounded-lg cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
@@ -217,6 +243,7 @@ function UsersTab({ users, currentUserId, onChanged }: { users: AdminUserSummary
       {creating && <CreateUserModal onClose={() => setCreating(false)} onCreated={() => { setCreating(false); onChanged(); }} />}
       {editingUser && <EditUserModal user={editingUser} onClose={() => setEditingUser(null)} onSaved={() => { setEditingUser(null); onChanged(); }} />}
       {blockedInfo && <DeletionBlockedModal info={blockedInfo} onClose={() => setBlockedInfo(null)} />}
+      {resetResult && <PasswordResetResultModal info={resetResult} onClose={() => setResetResult(null)} />}
     </div>
   );
 }
@@ -451,6 +478,36 @@ function DeletionBlockedModal({ info, onClose }: { info: { user: AdminUserSummar
             Preporuka: <strong>blokirajte</strong> nalog umjesto brisanja — spriječava prijavu, a čuva sve podatke i dnevnik aktivnosti.
           </p>
           <button onClick={onClose} className="w-full py-3 bg-slate-900 text-white font-extrabold text-xs uppercase rounded-full cursor-pointer">Razumijem</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PasswordResetResultModal({ info, onClose }: { info: { user: AdminUserSummary; password: string }; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-3xl w-full max-w-md border border-slate-200 shadow-xl overflow-hidden">
+        <div className="bg-emerald-50 border-b border-emerald-200 px-6 py-4 flex items-center gap-2">
+          <CheckCircle className="w-5 h-5 text-emerald-600" />
+          <h3 className="text-sm font-extrabold text-emerald-800 uppercase tracking-wider">Lozinka resetovana</h3>
+        </div>
+        <div className="p-6 space-y-4">
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-1">
+            <p className="text-[10px] font-extrabold text-amber-700 uppercase tracking-widest">Lozinka se prikazuje samo jednom — sačuvajte je odmah</p>
+            <div className="flex items-center gap-2 mt-2">
+              <code className="flex-1 bg-white px-3 py-2 rounded-xl border border-amber-200 text-sm font-mono">{info.password}</code>
+              <button onClick={() => navigator.clipboard.writeText(info.password)} className="p-2 bg-white border border-amber-200 rounded-xl cursor-pointer hover:bg-amber-100" title="Kopiraj">
+                <Copy className="w-4 h-4 text-amber-700" />
+              </button>
+            </div>
+          </div>
+          <p className="text-xs text-slate-600">
+            Stara lozinka za <strong>{info.user.full_name}</strong> ({info.user.email}) više ne važi. Proslijedite novu lozinku sigurnim putem (lično, telefonom) — ne ostaje sačuvana nigdje u sistemu.
+          </p>
+          <button onClick={onClose} className="w-full py-3 bg-slate-900 text-white font-extrabold text-xs uppercase rounded-full cursor-pointer">
+            Gotovo
+          </button>
         </div>
       </div>
     </div>
