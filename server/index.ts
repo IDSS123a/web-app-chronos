@@ -17,6 +17,7 @@ import { registerReminderCronJob } from './features/reminders/cron';
 import { notificationsRouter } from './features/notifications/routes';
 import { registerNotificationCronJob } from './features/notifications/cron';
 import { adminRouter } from './features/admin/routes';
+import { healthRouter } from './features/health/routes';
 
 const app = express();
 const isProduction = process.env.NODE_ENV === 'production';
@@ -31,6 +32,7 @@ const PORT = Number(isProduction ? process.env.PORT : process.env.API_PORT) || 3
 app.use(cors());
 app.use(express.json());
 
+app.use('/api/health', healthRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/obligations', obligationsRouter);
 app.use('/api/audit-logs', auditLogsRouter);

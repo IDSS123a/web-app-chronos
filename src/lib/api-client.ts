@@ -87,6 +87,23 @@ export async function logUserAction(targetUserId: string, changes: string): Prom
   await parseResponse<AuditLog>(response);
 }
 
+export type DatabaseStatus = 'ONLINE' | 'OFFLINE';
+
+/**
+ * Live database connectivity check for the header status indicator. Public
+ * endpoint (no auth) — never throws: any network/server/DB failure resolves
+ * to 'OFFLINE' so the caller can render a status without a try/catch.
+ */
+export async function fetchDatabaseStatus(): Promise<DatabaseStatus> {
+  try {
+    const response = await fetch('/api/health');
+    const body = (await response.json().catch(() => null)) as { data?: { database?: string } } | null;
+    return body?.data?.database === 'ONLINE' ? 'ONLINE' : 'OFFLINE';
+  } catch {
+    return 'OFFLINE';
+  }
+}
+
 export async function fetchObligations(): Promise<Obligation[]> {
   const response = await authorizedFetch('/api/obligations');
   return parseResponse<Obligation[]>(response);
