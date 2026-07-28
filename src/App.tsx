@@ -19,7 +19,9 @@ import {
   clearAuditLogs as clearAuditLogsApi,
   uploadObligationAttachment,
   runReminderScan,
+  fetchDatabaseStatus,
   type ReminderScanResult,
+  type DatabaseStatus,
 } from './lib/api-client';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
@@ -136,6 +138,28 @@ export default function App() {
     const interval = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(interval);
   }, []);
+
+  // Live database status — replaces the old hardcoded "● ONLINE" label with a
+  // real health check that probes Supabase every 30s (only while logged in;
+  // the header is only shown then). null = still checking (first tick).
+  const [dbStatus, setDbStatus] = useState<DatabaseStatus | null>(null);
+  useEffect(() => {
+    if (!currentUser) {
+      setDbStatus(null);
+      return;
+    }
+    let isMounted = true;
+    const check = async () => {
+      const status = await fetchDatabaseStatus();
+      if (isMounted) setDbStatus(status);
+    };
+    check();
+    const interval = setInterval(check, 30000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [currentUser]);
 
   // 5. Undo toast state (see UndoAction note above)
   const [undoAction, setUndoAction] = useState<UndoAction | null>(null);
@@ -573,7 +597,13 @@ export default function App() {
             <div className="h-10 w-[1px] bg-slate-200"></div>
             <div className="text-right text-[11px] text-slate-400 font-medium hidden sm:block">
               <div>Baza podataka: <strong className="text-slate-700 font-mono text-[10px]">idsssarajevo@gmail.com</strong></div>
-              <div>Mrežni status: <span className="text-emerald-600 font-bold font-mono">● ONLINE</span></div>
+              <div>Mrežni status: {
+                dbStatus === null
+                  ? <span className="text-slate-400 font-bold font-mono">● PROVJERA…</span>
+                  : dbStatus === 'ONLINE'
+                    ? <span className="text-emerald-600 font-bold font-mono">● ONLINE</span>
+                    : <span className="text-red-600 font-bold font-mono">● OFFLINE</span>
+              }</div>
             </div>
           </div>
         </header>
