@@ -596,7 +596,6 @@ export default function App() {
             </div>
             <div className="h-10 w-[1px] bg-slate-200"></div>
             <div className="text-right text-[11px] text-slate-400 font-medium hidden sm:block">
-              <div>Baza podataka: <strong className="text-slate-700 font-mono text-[10px]">idsssarajevo@gmail.com</strong></div>
               <div>Mrežni status: {
                 dbStatus === null
                   ? <span className="text-slate-400 font-bold font-mono">● PROVJERA…</span>
